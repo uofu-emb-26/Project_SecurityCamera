@@ -34,13 +34,8 @@ add_subdirectory(Drivers)
 include(flash_stm32)
 
 # Add labs subprojects
-add_subdirectory(lab1)
-add_subdirectory(lab2)
-add_subdirectory(lab3)
-add_subdirectory(lab4)
-add_subdirectory(lab5)
-add_subdirectory(lab6)
-add_subdirectory(lab7)
+add_subdirectory(camera)
+add_subdirectory(RF)
 
 # Remove wrong libob.a library dependency when using cpp files
 list(REMOVE_ITEM CMAKE_C_IMPLICIT_LINK_LIBRARIES ob)
