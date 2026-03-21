@@ -1,0 +1,62 @@
+==========
+   SPI1
+==========
+SPI1_MISO
+    - PB4 (Free) [AF0]
+    - PA6 (TS_G2_IO3)
+        - DON'T USE without soldering SB27-32 and removing R38-40 and C26-28
+SPI1_MOSI
+    - PB5 (Free) [AF0]
+    - PA7 (TS_G2_IO4)
+        - DON'T USE without soldering SB27-32 and removing R38-40 and C26-28
+SPI1_SCLK
+    - PB3 (Free)
+    - PA5 (Free)
+
+==========
+   SPI2
+==========
+SPI2_MISO
+    - PB14 (Gyro SDO) [AF0]
+        - AS LONG AS PC0 (Gyro CS) is driven high, this can be used
+            - This switches SDO to SA0 (Gyro address bit 0), meaning this pin on the Gyro is in input mode and therefore tri-stated
+    - PC2 (Gyro Int2) [AF1]
+        - Interrupt pin driven by Gyro
+        - DON'T USE (to prevent driving opposing states on the MISO line and frying something)
+SPI2_MOSI
+    - PC3 (Free) [AF1]
+    - PB15 (Gyro SDA) [AF0]
+        - This pin should probably be avoided
+            - If PC0 is driven high, I2C mode is enabled on the Gyro, so this pin functions as SDA.
+                - If bits corresponding to the Gyro's address are transmitted over MOSI, the Gyro may drive the line and fry something
+            - If PC0 is driven low, this pin functions as SDI by default, which is an input, but this means PB14 can't be used as MISO.
+SPI2_SCLK
+    - PB13 (Gyro SCL) [AF0]
+        - On the Gyro, this pin is only an input (either for SCL (I2C clock) or SPC (SPI clock)). It is a good option to use for SCLK.
+    - PB10 (EXT/RF-E2P SCL) [AF5]
+        - This only connects to a header, so it's fine to use as the clock.
+        - However, this has a long trace that passes all of the board's left-side pins, so it may not be great for high-speed data.
+
+==========
+   I2C1
+==========
+I2C1_SCL
+    - PB6 (Free) [AF1]
+    - PB8 (Free) [AF1]
+I2C1_SDA
+    - PB7 (Free) [AF1]
+    - PB9 (Free) [AF1]
+
+==========
+   I2C2
+==========
+I2C2_SCL
+    - PB10 (EXT/RF-E2P SCL) [AF1]
+        - Use this for the lower-speed I2C clock
+    - PB13 (Gyro SCL) [AF5]
+        - Probably used by SPI2_SCLK
+I2C2_SDA
+    - PB11 (EXT/RF-E2P SDA) [AF1]
+        - Use this
+    - PB14 (Gyro SDO) [AF5]
+        - Used by SPI2_MISO
