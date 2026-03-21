@@ -31,6 +31,7 @@ extern "C" {
 
 // ----------------------------------------------------------------- includes --
 
+// Definition added by Zachary Ward
 #define STM32F0
 
 #if defined (STM32L4)
@@ -220,11 +221,11 @@ struct ili9341
 
 // ------------------------------------------------------- exported variables --
 
-/* nothing */
+extern ili9341_t lcd_global;
 
 // ------------------------------------------------------- exported functions --
 
-ili9341_t *ili9341_new(
+void ili9341_init(
 
     SPI_HandleTypeDef *spi_hal,
 

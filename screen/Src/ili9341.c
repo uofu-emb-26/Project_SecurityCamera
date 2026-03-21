@@ -24,7 +24,8 @@
 
 // ----------------------------------------------------------------- includes --
 
-#include <stdlib.h> // malloc()
+// 
+// #include <stdlib.h> // malloc()
 #include <string.h> // memset()
 #include <ctype.h>
 
@@ -52,7 +53,9 @@
 
 // ------------------------------------------------------- exported variables --
 
-/* nothing */
+// Initialize the LCD structure
+// (Modified by Zachary Ward to not use malloc)
+ili9341_t lcd_global = {0};
 
 // -------------------------------------------------------- private variables --
 
@@ -75,7 +78,7 @@ ili9341_two_dimension_t ili9341_project_touch_coordinate(ili9341_t *lcd,
 
 // ------------------------------------------------------- exported functions --
 
-ili9341_t *ili9341_new(
+void ili9341_init(
 
     SPI_HandleTypeDef *spi_hal,
 
@@ -91,8 +94,6 @@ ili9341_t *ili9341_new(
     ili9341_touch_support_t   touch_support,
     ili9341_touch_normalize_t touch_normalize)
 {
-  ili9341_t *lcd = NULL;
-
   if (NULL != spi_hal) {
 
     if ( (NULL != reset_port)        && IS_GPIO_PIN(reset_pin)         &&
@@ -106,64 +107,61 @@ ili9341_t *ili9341_new(
            ( (NULL != touch_select_port) && IS_GPIO_PIN(touch_select_pin) &&
              (NULL != touch_irq_port)    && IS_GPIO_PIN(touch_irq_pin)    )) {
 
-        if (NULL != (lcd = malloc(sizeof(ili9341_t)))) {
 
-          lcd->spi_hal              = spi_hal;
+        // Modified by Zachary Ward to not use malloc
+        lcd_global.spi_hal              = spi_hal;
 
-          lcd->reset_port           = reset_port;
-          lcd->reset_pin            = reset_pin;
-          lcd->tft_select_port      = tft_select_port;
-          lcd->tft_select_pin       = tft_select_pin;
-          lcd->data_command_port    = data_command_port;
-          lcd->data_command_pin     = data_command_pin;
+        lcd_global.reset_port           = reset_port;
+        lcd_global.reset_pin            = reset_pin;
+        lcd_global.tft_select_port      = tft_select_port;
+        lcd_global.tft_select_pin       = tft_select_pin;
+        lcd_global.data_command_port    = data_command_port;
+        lcd_global.data_command_pin     = data_command_pin;
 
-          lcd->orientation          = orientation;
-          lcd->screen_size          = ili9341_screen_size(orientation);
+        lcd_global.orientation          = orientation;
+        lcd_global.screen_size          = ili9341_screen_size(orientation);
 
-          if (touch_support) {
+        if (touch_support) {
 
-            lcd->touch_select_port    = touch_select_port;
-            lcd->touch_select_pin     = touch_select_pin;
-            lcd->touch_irq_port       = touch_irq_port;
-            lcd->touch_irq_pin        = touch_irq_pin;
+          lcd_global.touch_select_port    = touch_select_port;
+          lcd_global.touch_select_pin     = touch_select_pin;
+          lcd_global.touch_irq_port       = touch_irq_port;
+          lcd_global.touch_irq_pin        = touch_irq_pin;
 
-            lcd->touch_support        = touch_support;
-            lcd->touch_normalize      = touch_normalize;
-            lcd->touch_coordinate     = (ili9341_two_dimension_t){ {0U}, {0U} };
-            lcd->touch_calibration    = itcNONE;
-            lcd->touch_scalar         = (ili9341_scalar_calibrator_t){ {{0U}, {0U}}, {{0U}, {0U}} };
-            lcd->touch_3point         = (ili9341_3point_calibrator_t){ {{0U}, {0U}}, 0, 0, 0.0F, 0.0F, 0.0F, 0.0F };
+          lcd_global.touch_support        = touch_support;
+          lcd_global.touch_normalize      = touch_normalize;
+          lcd_global.touch_coordinate     = (ili9341_two_dimension_t){ {0U}, {0U} };
+          lcd_global.touch_calibration    = itcNONE;
+          lcd_global.touch_scalar         = (ili9341_scalar_calibrator_t){ {{0U}, {0U}}, {{0U}, {0U}} };
+          lcd_global.touch_3point         = (ili9341_3point_calibrator_t){ {{0U}, {0U}}, 0, 0, 0.0F, 0.0F, 0.0F, 0.0F };
 
-            lcd->touch_pressed        = itpNotPressed;
-            lcd->touch_pressed_begin  = NULL;
-            lcd->touch_pressed_end    = NULL;
+          lcd_global.touch_pressed        = itpNotPressed;
+          lcd_global.touch_pressed_begin  = NULL;
+          lcd_global.touch_pressed_end    = NULL;
 
-          } else {
+        } else {
 
-            lcd->touch_select_port    = NULL;
-            lcd->touch_select_pin     = 0;
-            lcd->touch_irq_port       = NULL;
-            lcd->touch_irq_pin        = 0;
+          lcd_global.touch_select_port    = NULL;
+          lcd_global.touch_select_pin     = 0;
+          lcd_global.touch_irq_port       = NULL;
+          lcd_global.touch_irq_pin        = 0;
 
-            lcd->touch_support        = touch_support;
-            lcd->touch_normalize      = itnNONE;
-            lcd->touch_coordinate     = (ili9341_two_dimension_t){ {0U}, {0U} };
-            lcd->touch_calibration    = itcNONE;
-            lcd->touch_scalar         = (ili9341_scalar_calibrator_t){ {{0U}, {0U}}, {{0U}, {0U}} };
-            lcd->touch_3point         = (ili9341_3point_calibrator_t){ {{0U}, {0U}}, 0, 0, 0.0F, 0.0F, 0.0F, 0.0F };
+          lcd_global.touch_support        = touch_support;
+          lcd_global.touch_normalize      = itnNONE;
+          lcd_global.touch_coordinate     = (ili9341_two_dimension_t){ {0U}, {0U} };
+          lcd_global.touch_calibration    = itcNONE;
+          lcd_global.touch_scalar         = (ili9341_scalar_calibrator_t){ {{0U}, {0U}}, {{0U}, {0U}} };
+          lcd_global.touch_3point         = (ili9341_3point_calibrator_t){ {{0U}, {0U}}, 0, 0, 0.0F, 0.0F, 0.0F, 0.0F };
 
-            lcd->touch_pressed        = itpNONE;
-            lcd->touch_pressed_begin  = NULL;
-            lcd->touch_pressed_end    = NULL;
-          }
-
-          ili9341_initialize(lcd);
+          lcd_global.touch_pressed        = itpNONE;
+          lcd_global.touch_pressed_begin  = NULL;
+          lcd_global.touch_pressed_end    = NULL;
         }
+
+        ili9341_initialize(&lcd_global);
       }
     }
   }
-
-  return lcd;
 }
 
 void ili9341_touch_interrupt(ili9341_t *lcd)
