@@ -6,6 +6,7 @@ add_executable(screen
     Src/ili9341_font.c
     Src/ili9341_gfx.c
     Src/ili9341.c
+    Src/ili9341_ext.c
 )
 
 # Add the map file to the list of files to be removed with 'clean' target
