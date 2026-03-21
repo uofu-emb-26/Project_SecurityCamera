@@ -410,13 +410,21 @@ void ili9341_spi_tft_release(ili9341_t *lcd)
 void ili9341_spi_touch_select(ili9341_t *lcd)
 {
   // clear bit indicates the touch screen is -active- slave SPI device
-  HAL_GPIO_WritePin(lcd->touch_select_port, lcd->touch_select_pin, __GPIO_PIN_CLR__);
+  // Modified by Zachary Ward to prevent issues if the touch select port is undefined
+  if (lcd->touch_select_port != NULL)
+  {
+    HAL_GPIO_WritePin(lcd->touch_select_port, lcd->touch_select_pin, __GPIO_PIN_CLR__);
+  }
 }
 
 void ili9341_spi_touch_release(ili9341_t *lcd)
 {
   // set bit indicates the touch screen is -inactive- slave SPI device
-  HAL_GPIO_WritePin(lcd->touch_select_port, lcd->touch_select_pin, __GPIO_PIN_SET__);
+  // Modified by Zachary Ward to prevent issues if the touch select port is undefined
+  if (lcd->touch_select_port != NULL)
+  {
+    HAL_GPIO_WritePin(lcd->touch_select_port, lcd->touch_select_pin, __GPIO_PIN_SET__);
+  }
 }
 
 void ili9341_spi_slave_select(ili9341_t *lcd,
