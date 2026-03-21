@@ -6,6 +6,7 @@ extern "C" {
 #endif
 
 #include "stm32f0xx_hal.h"
+#include "ili9341.h"
 
 #define TFT_CS_Pin GPIO_PIN_9
 #define TFT_CS_GPIO_Port GPIOA

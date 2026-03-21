@@ -13,9 +13,24 @@ int main(void)
 {
     HAL_Init();
     SystemClock_Config();
+    // Initialize the peripherals used by the screen
     MX_GPIO_Init();
     MX_DMA_Init();
     MX_SPI1_Init();
+
+    // Initialize the screen
+    ili9341_init(
+        &hspi1,
+        TFT_RST_GPIO_Port, TFT_RST_Pin,
+        TFT_CS_GPIO_Port, TFT_CS_Pin,
+        TFT_DC_GPIO_Port, TFT_DC_Pin,
+        isoLandscape,
+        // Not currently using the touchscreen
+        NULL, 0,
+        NULL, 0,
+        0,
+        -1
+    );
     
     while(1)
     {
