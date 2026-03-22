@@ -138,7 +138,8 @@ void ili9341_transmit_wait(ili9341_t *lcd)
     { continue; }
 }
 
-void ili9341_transmit_color(ili9341_t *lcd, uint16_t size,
+// Modified by Zachary Ward (increased size to 32 bit)
+void ili9341_transmit_color(ili9341_t *lcd, uint32_t size,
     uint16_t color[]/* already byte-swapped (LE) */, ili9341_bool_t wait)
 {
   if ((NULL == lcd) || (0 == size) || (NULL == color))
