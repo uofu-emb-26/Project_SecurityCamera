@@ -33,7 +33,20 @@ int main(void)
         0,
         -1
     );
-    
+
+    // Perform the endian-swap on the dirt texture
+    ili9341_array_endian_swap((uint16_t *)&dirt_16x16[0], 16*16);
+
+    // Fill the screen with the dirt texture one 16x16 pixel region at a time
+    for (int col = 0; col < 20; col++)
+    {
+      for (int row = 0; row < 15; row++)
+      {
+        // No further endian-swaps are needed
+        ili9341_draw_region(&lcd_global, col, row, (uint16_t *)&dirt_16x16[0], 0);
+      }
+    }
+
     while(1)
     {
     }

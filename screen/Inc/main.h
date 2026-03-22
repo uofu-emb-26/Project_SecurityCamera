@@ -7,6 +7,9 @@ extern "C" {
 
 #include "stm32f0xx_hal.h"
 #include "ili9341.h"
+#include "images.h"
+#include "ili9341_ext.h"
+#include "ili9341_gfx.h"
 
 #define TFT_RST_Pin GPIO_PIN_8
 #define TFT_RST_GPIO_Port GPIOA
