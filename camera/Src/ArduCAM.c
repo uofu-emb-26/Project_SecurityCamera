@@ -35,7 +35,7 @@ void ArduCAM_Init(byte model)
 					wrSensorRegs8_8(OV2640_JPEG);
 					wrSensorReg8_8(0xff, 0x01);
 					wrSensorReg8_8(0x15, 0x00);
-					wrSensorRegs8_8(OV2640_320x240_JPEG);
+					wrSensorRegs8_8(OV2640_640x480_JPEG);
 			}
 			else
 			{
@@ -234,62 +234,17 @@ void OV2640_set_JPEG_size(uint8_t size)
 
 byte wrSensorReg8_8(int regID, int regDat)
 {
-	HAL_Delay(5);
-	sccb_bus_start();                          
-	if(sccb_bus_write_byte(sensor_addr) == 0)         
-	{
-		sccb_bus_stop();                        
-		return 1;
-	}
-	HAL_Delay(5);
-	if(sccb_bus_write_byte(regID) == 0)
-	{
-		sccb_bus_stop();                              
-		return 2;                                       
-	}
-	HAL_Delay(5);
-	if(sccb_bus_write_byte(regDat)==0)                    
-	{
-		sccb_bus_stop();                                 
-		return 3;
-	}
-	sccb_bus_stop();                                    
-	return 0;
+    if (sccb_write_reg(sensor_addr, (uint8_t)regID, (uint8_t)regDat) != HAL_OK)
+        return 1;
+    HAL_Delay(1);
+    return 0;
 }
-
 
 byte rdSensorReg8_8(uint8_t regID, uint8_t* regDat)
 {
-	HAL_Delay(10);
-	
-	sccb_bus_start();
-	if(sccb_bus_write_byte(sensor_addr) == 0)                 
-	{
-		sccb_bus_stop();                                
-		//goto start;
-		return 1;                                        
-	}
-	HAL_Delay(10);
-	if(sccb_bus_write_byte(regID)==0)//ID
-	{
-		sccb_bus_stop();                                  
-		//goto start;
-		return 2;                                       
-	}
-	sccb_bus_stop();                                   
-	HAL_Delay(10);	
-	sccb_bus_start();
-	if(sccb_bus_write_byte(sensor_addr|0x01)==0)                    
-	{
-		sccb_bus_stop();                                   
-		//goto start;
-		return 3;                                          
-	}
-	HAL_Delay(10);
-	*regDat = sccb_bus_read_byte();                    
-	sccb_bus_send_noack();                                
-	sccb_bus_stop();                                      
-	return 0;                
+    if (sccb_read_reg(sensor_addr, regID, regDat) != HAL_OK)
+        return 1;
+    return 0;
 }
 
 //I2C Array Write 8bit address, 8bit data

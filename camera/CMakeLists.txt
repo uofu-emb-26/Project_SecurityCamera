@@ -1,6 +1,7 @@
 # Add C source files here.
 add_executable(camera
     Src/main.c
+    Src/camera.c
     Src/ArduCAM.c
     Src/sccb_bus.c
     Src/spi.c
@@ -26,3 +27,18 @@ target_link_libraries(camera
 )
 
 flash_target(camera)
+
+# Debug target - UART streaming for Python verification
+add_executable(camera_debug
+    Src/main_uart_debug.c
+    Src/ArduCAM.c
+    Src/sccb_bus.c
+    Src/spi.c
+    Src/stm32f0xx_it.c
+    Src/stm32f0xx_hal_msp.c
+)
+set_target_properties(camera_debug PROPERTIES ADDITIONAL_CLEAN_FILES camera_debug.map)
+target_include_directories(camera_debug PRIVATE Inc)
+target_compile_definitions(camera_debug PRIVATE)
+target_link_libraries(camera_debug STM32_Drivers)
+flash_target(camera_debug)
