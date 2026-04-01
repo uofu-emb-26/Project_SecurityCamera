@@ -57,7 +57,7 @@ void SPI2_Init(void) {
     HAL_SPI_Init(&hspi2);
     }
 
-void USART2_Init(void) {
+void USART3_Init(void) {
     __HAL_RCC_USART3_CLK_ENABLE();
     __HAL_RCC_GPIOA_CLK_ENABLE();
 
@@ -69,7 +69,7 @@ void USART2_Init(void) {
                                      GPIO_AF1_USART3};
     HAL_GPIO_Init(GPIOA, &initStr_UART);
 
-    huart3.Instance        = USART2;
+    huart3.Instance        = USART3;
     huart3.Init.BaudRate   = 115200;
     huart3.Init.WordLength = UART_WORDLENGTH_8B;
     huart3.Init.StopBits   = UART_STOPBITS_1;
