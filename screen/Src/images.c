@@ -69,7 +69,12 @@ uint8_t dirt_16x16[512] = {
 	0x48, 0x93, 0x48, 0x93, 0xC7, 0x7A, 0x05, 0x5A
 };
 
-// For this function to work, buffer16 must be stored in RAM (it must not be a const)
+/**
+ * @brief Performs an in-place 2-byte endian swap on an array of 16-bit pixel data.
+ * @note For this function to work, buffer16 must be stored in RAM (it must not be a const)
+ * @param buffer16 Pointer to the 16-bit pixel buffer to be swapped. 
+ * @param num_pixels The total number of 16-bit pixels in the buffer.
+ */
 void ili9341_array_endian_swap(uint16_t *buffer16, uint32_t num_pixels)
 {
     uint32_t *buffer32 = (uint32_t *)buffer16;

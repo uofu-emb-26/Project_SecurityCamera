@@ -20,7 +20,18 @@ void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi)
     }
 }
 
-// Inspired by ili9341_fill_rect()
+/**
+ * @brief Transmits a buffer of pixel data to a specific region on the ILI9341 display using DMA.
+ * @note Inspired by the ili9341_fill_rect() library function
+ * @param lcd Pointer to the ILI9341 display structure.
+ * @param x The starting X coordinate (top-left corner) of the drawing area.
+ * @param y The starting Y coordinate (top-left corner) of the drawing area.
+ * @param w The width of the drawing area in pixels.
+ * @param h The height of the drawing area in pixels.
+ * @param buffer Pointer to the array of 16-bit pixel data to be drawn.
+ * @param endian_swap Flag indicating whether to perform an in-place endian swap (1) or not (0) 
+ * prior to the DMA transfer.
+ */
 void ili9341_draw_buffer(ili9341_t *lcd, int16_t x, int16_t y, int16_t w, int16_t h, uint16_t *buffer, uint8_t endian_swap)
 {
     // Error checking
@@ -55,7 +66,15 @@ void ili9341_draw_buffer(ili9341_t *lcd, int16_t x, int16_t y, int16_t w, int16_
     HAL_SPI_Transmit_DMA(lcd->spi_hal, (uint8_t *)buffer, total_bytes);
 }
 
-// Draw a 16x16 pixel region on the screen
+/**
+ * @brief Draws a 16x16 pixel region at a grid coordinate on the ILI9341 display using DMA.
+ * @param lcd Pointer to the ILI9341 display structure.
+ * @param column The grid column index (0 to 19, where 0 is the left edge).
+ * @param row The grid row index (0 to 14, where 0 is the top edge).
+ * @param buffer Pointer to the array of 256 (16x16) 16-bit pixels to be drawn.
+ * @param endian_swap Flag indicating whether to perform an in-place endian swap (1) or not (0) 
+ * prior to the DMA transfer.
+ */
 void ili9341_draw_region(ili9341_t *lcd, uint8_t column, uint8_t row, uint16_t *buffer, uint8_t endian_swap)
 {
     // A 320x240 pixel screen has 15 rows and 20 columns of 16x16 pixel regions
