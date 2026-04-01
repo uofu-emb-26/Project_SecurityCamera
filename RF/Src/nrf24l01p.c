@@ -3,33 +3,28 @@
  *
  *  Created on: 2021. 7. 20.
  *      Author: mokhwasomssi
+ *      Modified: Zoey Lee
  * 
  */
 
 
 #include "stm32f0xx_hal.h"
 #include "nrf24l01p.h"
+NRF24_PinConfig nrf_active;
 extern SPI_HandleTypeDef hspi2;
 
 
-static void cs_high()
-{
-    HAL_GPIO_WritePin(NRF24L01P_SPI_CS_PIN_PORT, NRF24L01P_SPI_CS_PIN_NUMBER, GPIO_PIN_SET);
+static void cs_high() {
+    HAL_GPIO_WritePin(nrf_active.cs_port, nrf_active.cs_pin, GPIO_PIN_SET);
 }
-
-static void cs_low()
-{
-    HAL_GPIO_WritePin(NRF24L01P_SPI_CS_PIN_PORT, NRF24L01P_SPI_CS_PIN_NUMBER, GPIO_PIN_RESET);
+static void cs_low() {
+    HAL_GPIO_WritePin(nrf_active.cs_port, nrf_active.cs_pin, GPIO_PIN_RESET);
 }
-
-static void ce_high()
-{
-    HAL_GPIO_WritePin(NRF24L01P_CE_PIN_PORT, NRF24L01P_CE_PIN_NUMBER, GPIO_PIN_SET);
+static void ce_high() {
+    HAL_GPIO_WritePin(nrf_active.ce_port, nrf_active.ce_pin, GPIO_PIN_SET);
 }
-
-static void ce_low()
-{
-    HAL_GPIO_WritePin(NRF24L01P_CE_PIN_PORT, NRF24L01P_CE_PIN_NUMBER, GPIO_PIN_RESET);
+static void ce_low() {
+    HAL_GPIO_WritePin(nrf_active.ce_port, nrf_active.ce_pin, GPIO_PIN_RESET);
 }
 
 static uint8_t read_register(uint8_t reg)
@@ -62,8 +57,9 @@ static uint8_t write_register(uint8_t reg, uint8_t value)
 
 
 /* nRF24L01+ Main Functions */
-void nrf24l01p_rx_init(channel MHz, air_data_rate bps)
+void nrf24l01p_rx_init(NRF24_PinConfig* pins, channel MHz, air_data_rate bps)
 {
+    nrf_active = *pins;
     nrf24l01p_reset();
 
     nrf24l01p_prx_mode();
@@ -84,8 +80,9 @@ void nrf24l01p_rx_init(channel MHz, air_data_rate bps)
     ce_high();
 }
 
-void nrf24l01p_tx_init(channel MHz, air_data_rate bps)
+void nrf24l01p_tx_init(NRF24_PinConfig* pins, channel MHz, air_data_rate bps)
 {
+    nrf_active = *pins;
     nrf24l01p_reset();
 
     nrf24l01p_ptx_mode();
@@ -108,8 +105,6 @@ void nrf24l01p_rx_receive(uint8_t* rx_payload)
 {
     nrf24l01p_read_rx_fifo(rx_payload);
     nrf24l01p_clear_rx_dr();
-
-    HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_6);
 }
 
 void nrf24l01p_tx_transmit(uint8_t* tx_payload)
@@ -124,15 +119,13 @@ void nrf24l01p_tx_irq()
 
     if(tx_ds)
     {   
-        // TX_DS
-        HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_6);
+        // TX_DS           
         nrf24l01p_clear_tx_ds();
     }
 
     else
     {
         // MAX_RT
-        HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, SET);
         nrf24l01p_clear_max_rt();
     }
 }
