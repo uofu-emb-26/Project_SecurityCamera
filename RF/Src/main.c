@@ -1,28 +1,49 @@
 #include "main.h"
 #include "nrf24l01p.h"
+#include <string.h>
+#include <stdio.h>
 
 SPI_HandleTypeDef hspi2;
+UART_HandleTypeDef huart3;
 
 void SystemClock_Config(void);
 
 void SPI2_Init(void) {
     __HAL_RCC_SPI2_CLK_ENABLE();
     __HAL_RCC_GPIOB_CLK_ENABLE();
+    __HAL_RCC_GPIOC_CLK_ENABLE();
 
-    // SCK=PB13, MISO=PB14, MOSI=PB15
-    GPIO_InitTypeDef initStr_SPI2 = {GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15,
-                                     GPIO_MODE_AF_PP,
-                                     GPIO_NOPULL,
-                                     GPIO_SPEED_FREQ_HIGH,
-                                     GPIO_AF0_SPI2};
-    HAL_GPIO_Init(GPIOB, &initStr_SPI2);
+    // SCK=PB13, MISO=PB14
+    GPIO_InitTypeDef initStr_SPI2B = {GPIO_PIN_13 | GPIO_PIN_14,
+                                      GPIO_MODE_AF_PP,
+                                      GPIO_NOPULL,
+                                      GPIO_SPEED_FREQ_HIGH,
+                                      GPIO_AF0_SPI2};
+    HAL_GPIO_Init(GPIOB, &initStr_SPI2B);
 
-    // CSN=PB12, CE=PB11
-    GPIO_InitTypeDef initStr_NRF_GPIO = {GPIO_PIN_11 | GPIO_PIN_12,
-                                         GPIO_MODE_OUTPUT_PP,
-                                         GPIO_NOPULL,
-                                         GPIO_SPEED_FREQ_LOW};
-    HAL_GPIO_Init(GPIOB, &initStr_NRF_GPIO);
+    GPIO_InitTypeDef initStr_LED = {GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9,
+                                GPIO_MODE_OUTPUT_PP,
+                                GPIO_NOPULL,
+                                GPIO_SPEED_FREQ_LOW,
+                                0};
+    HAL_GPIO_Init(GPIOC, &initStr_LED);
+
+    // MOSI=PC3 [AF1]
+    GPIO_InitTypeDef initStr_SPI2C = {GPIO_PIN_3,
+                                      GPIO_MODE_AF_PP,
+                                      GPIO_NOPULL,
+                                      GPIO_SPEED_FREQ_HIGH,
+                                      GPIO_AF1_SPI2};
+    HAL_GPIO_Init(GPIOC, &initStr_SPI2C);
+
+    // TX: CSN=PB12, CE=PB1
+    // RX: CSN=PB10, CE=PB11
+    GPIO_InitTypeDef initStr_NRF = {GPIO_PIN_1 | GPIO_PIN_10 | GPIO_PIN_11 | GPIO_PIN_12,
+                                    GPIO_MODE_OUTPUT_PP,
+                                    GPIO_NOPULL,
+                                    GPIO_SPEED_FREQ_LOW,
+                                    0};
+    HAL_GPIO_Init(GPIOB, &initStr_NRF);
 
     hspi2.Instance               = SPI2;
     hspi2.Init.Mode              = SPI_MODE_MASTER;
@@ -34,39 +55,86 @@ void SPI2_Init(void) {
     hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_32;
     hspi2.Init.FirstBit          = SPI_FIRSTBIT_MSB;
     HAL_SPI_Init(&hspi2);
+    }
+
+void USART2_Init(void) {
+    __HAL_RCC_USART3_CLK_ENABLE();
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+
+    // PA4=TX, PA5=RX
+    GPIO_InitTypeDef initStr_UART = {GPIO_PIN_4 | GPIO_PIN_5,
+                                     GPIO_MODE_AF_PP,
+                                     GPIO_NOPULL,
+                                     GPIO_SPEED_FREQ_HIGH,
+                                     GPIO_AF1_USART3};
+    HAL_GPIO_Init(GPIOA, &initStr_UART);
+
+    huart3.Instance        = USART2;
+    huart3.Init.BaudRate   = 115200;
+    huart3.Init.WordLength = UART_WORDLENGTH_8B;
+    huart3.Init.StopBits   = UART_STOPBITS_1;
+    huart3.Init.Parity     = UART_PARITY_NONE;
+    huart3.Init.Mode       = UART_MODE_TX_RX;
+    HAL_UART_Init(&huart3);
 }
 
 int main(void) {
     HAL_Init();
-    
-    __HAL_RCC_GPIOC_CLK_ENABLE();
-    GPIO_InitTypeDef initStr_LED = {GPIO_PIN_6,
-                                    GPIO_MODE_OUTPUT_PP,
-                                    GPIO_NOPULL,
-                                    GPIO_SPEED_FREQ_LOW};
-    HAL_GPIO_Init(GPIOC, &initStr_LED);
-
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_SET);
-    HAL_Delay(1000);
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_RESET);
-
     SystemClock_Config();
     SPI2_Init();
+    USART2_Init();
     HAL_Delay(100);
 
+    NRF24_PinConfig tx_pins = {
+        .cs_port = GPIOB, .cs_pin = GPIO_PIN_12,
+        .ce_port = GPIOB, .ce_pin = GPIO_PIN_1
+    };
+
+    NRF24_PinConfig rx_pins = {
+        .cs_port = GPIOB, .cs_pin = GPIO_PIN_10,
+        .ce_port = GPIOB, .ce_pin = GPIO_PIN_11
+    };
+
+    nrf24l01p_tx_init(&tx_pins, 2400, _1Mbps);
+    HAL_Delay(10);
+    nrf24l01p_rx_init(&rx_pins, 2400, _1Mbps);
+    HAL_Delay(10);
+
+    // nRF24L01+ can send and receive 1-32 bytes per payload
+    uint8_t tx_data[8] = {1, 2, 3, 4, 5, 6, 7, 8};
+    uint8_t rx_data[8] = {0};
+    nrf_active = tx_pins;
+uint8_t tx_config = nrf24l01p_get_status();
+
+while (1) {
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9, GPIO_PIN_RESET);
+
+    nrf_active = tx_pins;
+    nrf24l01p_tx_transmit(tx_data);
+    HAL_Delay(20);
+
+    nrf_active = rx_pins;
     uint8_t status = nrf24l01p_get_status();
 
-   if (status != 0xFF && status != 0x00) {
-        HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_SET);
-    } else {
-        while (1) {
-            HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_6);
-            HAL_Delay(200);
+    if (status & 0x40) {
+        nrf24l01p_rx_receive(rx_data);
+        if (memcmp(tx_data, rx_data, 8) == 0) {
+            HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_9);  // Green: Success and Matched
+        } 
+        
+        else {
+            HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_SET);  // Oragne: Success and But Not Matched
         }
+    } 
+    
+    else {
+        HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_SET);  // RED: Fail
     }
 
-    while (1) {}
+    HAL_Delay(1000);
+  }
 }
+
 
 /**
   * @brief System Clock Configuration

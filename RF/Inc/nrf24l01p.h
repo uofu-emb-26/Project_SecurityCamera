@@ -3,6 +3,7 @@
  *
  *  Created on: 2021. 7. 20.
  *      Author: mokhwasomssi
+ *      Modified: Zoey Lee
  * 
  */
 
@@ -19,11 +20,14 @@ extern SPI_HandleTypeDef hspi2;
 /* User Configurations */
 #define NRF24L01P_SPI                     (&hspi2)
 
-#define NRF24L01P_SPI_CS_PIN_PORT         GPIOB 
-#define NRF24L01P_SPI_CS_PIN_NUMBER       GPIO_PIN_12
+typedef struct {
+    GPIO_TypeDef* cs_port;
+    uint16_t      cs_pin;
+    GPIO_TypeDef* ce_port;
+    uint16_t      ce_pin;
+} NRF24_PinConfig;
 
-#define NRF24L01P_CE_PIN_PORT             GPIOB
-#define NRF24L01P_CE_PIN_NUMBER           GPIO_PIN_11
+extern NRF24_PinConfig nrf_active;
 
 #define NRF24L01P_IRQ_PIN_PORT            GPIOA
 #define NRF24L01P_IRQ_PIN_NUMBER          GPIO_PIN_8
@@ -55,8 +59,8 @@ typedef enum
 
 
 /* Main Functions */
-void nrf24l01p_rx_init(channel MHz, air_data_rate bps);
-void nrf24l01p_tx_init(channel MHz, air_data_rate bps);
+void nrf24l01p_rx_init(NRF24_PinConfig* pins, channel MHz, air_data_rate bps);
+void nrf24l01p_tx_init(NRF24_PinConfig* pins, channel MHz, air_data_rate bps);
 
 void nrf24l01p_rx_receive(uint8_t* rx_payload);
 void nrf24l01p_tx_transmit(uint8_t* tx_payload);
