@@ -36,8 +36,8 @@ void ArduCAM_Init(byte model)
 					wrSensorReg8_8(0xff, 0x01);
 					wrSensorReg8_8(0x15, 0x00);
 					// wrSensorRegs8_8(OV2640_640x480_JPEG);
-					wrSensorRegs8_8(OV2640_320x240_JPEG);
-					// wrSensorRegs8_8(OV2640_160x120_JPEG);
+					// wrSensorRegs8_8(OV2640_320x240_JPEG);
+					wrSensorRegs8_8(OV2640_160x120_JPEG);
 			}
 			else
 			{
