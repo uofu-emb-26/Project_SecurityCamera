@@ -3,6 +3,8 @@ add_executable(RF
     Src/main.c
     Src/stm32f0xx_it.c
     Src/stm32f0xx_hal_msp.c
+    Src/nrf24l01p.c
+    Src/nrf24l01p_ext.c
 )
 
 # Add the map file to the list of files to be removed with 'clean' target

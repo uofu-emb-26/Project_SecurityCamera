@@ -1,12 +1,65 @@
 #include "main.h"
 #include "nrf24l01p.h"
+#include "nrf24l01p_ext.h"
 #include <string.h>
 #include <stdio.h>
 
-SPI_HandleTypeDef hspi2;
 UART_HandleTypeDef huart3;
 
 void SystemClock_Config(void);
+
+// TODO: verify this works with STM32F072
+void EXTI_Init(void) {
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+
+    // Configure PB2 as an External Interrupt (Falling Edge)
+    GPIO_InitStruct.Pin = GPIO_PIN_2;
+    GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+    // The nRF24 IRQ pin is active low, so pull it up
+    GPIO_InitStruct.Pull = GPIO_PULLUP; 
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+    // Enable the NVIC interrupt for EXTI lines 2 and 3
+    HAL_NVIC_SetPriority(EXTI2_3_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(EXTI2_3_IRQn);
+}
+
+// TODO: verify this works with STM32F072
+void DMA_Init(void)
+{
+  // Enable DMA1 clock
+  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  // SPI2 RX DMA
+  hdma_spi2_rx.Instance = DMA1_Channel4;
+  hdma_spi2_rx.Init.Direction = DMA_PERIPH_TO_MEMORY;
+  hdma_spi2_rx.Init.PeriphInc = DMA_PINC_DISABLE;
+  hdma_spi2_rx.Init.MemInc = DMA_MINC_ENABLE;
+  hdma_spi2_rx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
+  hdma_spi2_rx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
+  hdma_spi2_rx.Init.Mode = DMA_NORMAL;
+  hdma_spi2_rx.Init.Priority = DMA_PRIORITY_LOW;
+  HAL_DMA_Init(&hdma_spi2_rx);
+  __HAL_LINKDMA(&hspi2, hdmarx, hdma_spi2_rx);
+
+  // SPI2 TX DMA
+  hdma_spi2_tx.Instance = DMA1_Channel5;
+  hdma_spi2_tx.Init.Direction = DMA_MEMORY_TO_PERIPH;
+  hdma_spi2_tx.Init.PeriphInc = DMA_PINC_DISABLE;
+  hdma_spi2_tx.Init.MemInc = DMA_MINC_ENABLE;
+  hdma_spi2_tx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
+  hdma_spi2_tx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
+  hdma_spi2_tx.Init.Mode = DMA_NORMAL;
+  hdma_spi2_tx.Init.Priority = DMA_PRIORITY_LOW;
+  HAL_DMA_Init(&hdma_spi2_tx);
+  __HAL_LINKDMA(&hspi2, hdmatx, hdma_spi2_tx);
+
+  // Enable DMA interrupts
+  HAL_NVIC_SetPriority(DMA1_Channel4_5_6_7_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel4_5_6_7_IRQn);
+}
 
 void SPI2_Init(void) {
     __HAL_RCC_SPI2_CLK_ENABLE();
@@ -81,6 +134,8 @@ void USART2_Init(void) {
 int main(void) {
     HAL_Init();
     SystemClock_Config();
+    EXTI_Init();
+    DMA_Init();
     SPI2_Init();
     USART2_Init();
     HAL_Delay(100);
@@ -99,6 +154,10 @@ int main(void) {
     HAL_Delay(10);
     nrf24l01p_rx_init(&rx_pins, 2400, _1Mbps);
     HAL_Delay(10);
+    nrf24l01p_mask_tx_interrupts();
+    HAL_Delay(10);
+
+    // TODO: update to use nrf_rx_buf, nrf_tx_buf, nrf_data_received, and nrf24l01p_tx_transmit_dma()
 
     // nRF24L01+ can send and receive 1-32 bytes per payload
     uint8_t tx_data[8] = {1, 2, 3, 4, 5, 6, 7, 8};
