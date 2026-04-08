@@ -41,23 +41,31 @@ int main(void)
     camera_init(&hi2c1);
     TIM2_Init();
 
-    while (1)
+    uint32_t len = camera_capture_frame();
+
+    if (len > 0)
     {
-        if (capture_request){
-            capture_request = 0;
-            uart3_write_string("timer fired\r\n");
-
-            uint32_t len = camera_capture_frame();
-            char msg[40];
-            snprintf(msg, sizeof(msg), "len=%lu\r\n", len);
-            uart3_write_string(msg);
-
-            if (len > 0)
-            {
                 const uint8_t *jpeg = camera_get_buffer();
                 spi_send_frame(jpeg, len);
-            }
-        }
+    }
+
+    while (1)
+    {
+        // if (capture_request){
+        //     capture_request = 0;
+        //     uart3_write_string("timer fired\r\n");
+
+        //     uint32_t len = camera_capture_frame();
+        //     char msg[40];
+        //     snprintf(msg, sizeof(msg), "len=%lu\r\n", len);
+        //     uart3_write_string(msg);
+
+        //     if (len > 0)
+        //     {
+        //         const uint8_t *jpeg = camera_get_buffer();
+        //         spi_send_frame(jpeg, len);
+        //     }
+        // }
     }
 }
 
