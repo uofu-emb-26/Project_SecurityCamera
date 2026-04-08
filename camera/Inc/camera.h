@@ -5,6 +5,7 @@
 #include "ArduCAM.h"
 #include "spi.h"
 #include "sccb_bus.h"
+#include "main.h"
 
 // Maximum frame buffer size - enough for 320x240 JPEG
 #define FRAME_BUFFER_SIZE 8192

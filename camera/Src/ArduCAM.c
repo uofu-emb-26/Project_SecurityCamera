@@ -35,7 +35,9 @@ void ArduCAM_Init(byte model)
 					wrSensorRegs8_8(OV2640_JPEG);
 					wrSensorReg8_8(0xff, 0x01);
 					wrSensorReg8_8(0x15, 0x00);
-					wrSensorRegs8_8(OV2640_640x480_JPEG);
+					// wrSensorRegs8_8(OV2640_640x480_JPEG);
+					// wrSensorRegs8_8(OV2640_320x240_JPEG);
+					wrSensorRegs8_8(OV2640_160x120_JPEG);
 			}
 			else
 			{
@@ -82,8 +84,8 @@ uint8_t bus_read(int address)
 {
 	uint8_t value;
    CS_LOW();
-	 SPI1_ReadWriteByte(address);
-	 value = SPI1_ReadWriteByte(0x00);
+	 SPI2_ReadWriteByte(address);
+	 value = SPI2_ReadWriteByte(0x00);
 	 CS_HIGH();
 	 return value;
 }
@@ -91,8 +93,8 @@ uint8_t bus_read(int address)
 uint8_t bus_write(int address,int value)
 {	
 	CS_LOW();HAL_Delay(10);
-	SPI1_ReadWriteByte(address);
-	SPI1_ReadWriteByte(value);
+	SPI2_ReadWriteByte(address);
+	SPI2_ReadWriteByte(value);
 	HAL_Delay(10);
 	CS_HIGH();
 	return 1;
@@ -117,7 +119,7 @@ uint8_t read_fifo(void)
 }
 void set_fifo_burst()
 {
-	SPI1_ReadWriteByte(BURST_FIFO_READ);
+	SPI2_ReadWriteByte(BURST_FIFO_READ);
 }
 
 

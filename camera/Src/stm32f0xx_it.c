@@ -1,6 +1,9 @@
 #include "main.h"
 #include "stm32f0xx_hal.h"
 #include "stm32f0xx_it.h"
+#include "stm32f0xx_hal_tim.h"
+
+extern TIM_HandleTypeDef htim2;
 
 /******************************************************************************/
 /*           Cortex-M0 Processor Interruption and Exception Handlers          */
@@ -54,3 +57,7 @@ void SysTick_Handler(void)
 /* please refer to the startup file (startup_stm32f0xx.s).                    */
 /******************************************************************************/
 
+void TIM2_IRQHandler(void)
+{
+    HAL_TIM_IRQHandler(&htim2);
+}

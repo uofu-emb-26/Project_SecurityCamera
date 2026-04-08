@@ -9,6 +9,7 @@
 
 I2C_HandleTypeDef hi2c1;
 UART_HandleTypeDef huart3;
+TIM_HandleTypeDef htim2;
 
 void SystemClock_Config(void);
 void I2C1_Init(void);
@@ -18,7 +19,7 @@ int main(void)
 {
     HAL_Init();
     SystemClock_Config();
-    SPI1_Init();
+    SPI2_Init();
     I2C1_Init();
     uart3_Init();
 
@@ -27,7 +28,7 @@ int main(void)
 
     ArduCAM_CS_init();
     ArduCAM_Init(OV2640);
-    HAL_Delay(100);
+    HAL_Delay(1);
 
     while(1)
     {
@@ -67,14 +68,19 @@ int main(void)
 
         static uint8_t buf[128];
         uint32_t remaining = len;
+
+        uint8_t prev = 0;
         while (remaining > 0)
         {
-            uint32_t chunk = (remaining > sizeof(buf)) ? sizeof(buf) : remaining;
-            for (uint32_t i = 0; i < chunk; i++)
-                buf[i] = SPI1_ReadWriteByte(0x00);
-            for (uint32_t i = 0; i < chunk; i++)
-                uart3_write_char((char)buf[i]);
-            remaining -= chunk;
+            // uint32_t chunk = (remaining > sizeof(buf)) ? sizeof(buf) : remaining;
+            // for (uint32_t i = 0; i < chunk; i++)
+            //     buf[i] = SPI2_ReadWriteByte(0x00);
+            // for (uint32_t i = 0; i < chunk; i++)
+            //     uart3_write_char((char)buf[i]);
+            // remaining -= chunk;
+            uint8_t b = SPI2_ReadWriteByte(0x00);
+            uart3_write_char((char)b);
+            remaining--;
         }
 
         CS_HIGH();
@@ -100,7 +106,7 @@ void uart3_Init(void)
     GPIOC->AFR[1] |=  ((1   << ((10-8)*4)) | (1   << ((11-8)*4)));
 
     // Baud rate: 48MHz / 115200
-    USART3->BRR = (uint16_t)(48000000 / 921600);
+    USART3->BRR = (uint16_t)(48000000 / 1500000);
     USART3->CR1 = USART_CR1_TE | USART_CR1_RE;
     USART3->CR1 |= USART_CR1_UE;
 }
