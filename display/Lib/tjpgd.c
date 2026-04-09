@@ -799,6 +799,8 @@ static JRESULT mcu_output (
 	uint8_t *pix;
 	JRECT rect;
 
+	// TODO: make `rect` global and insert wait statement below.
+	// while(HAL_SPI_GetState(lcd_global.spi_hal) != HAL_SPI_STATE_READY) {}
 
 	mx = jd->msx * 8; my = jd->msy * 8;					/* MCU size (pixel) */
 	rx = (x + mx <= jd->width) ? mx : jd->width - x;	/* Output rectangular size (it may be clipped at right/bottom end of image) */
