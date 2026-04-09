@@ -1,6 +1,7 @@
 #include "jpeg_decode.h"
 #include "tjpgd.h"
 #include "test_image.h"
+#include "stm32f0xx_hal.h"
 // #include "images.h"
 
 static uint32_t s_pos;
@@ -23,6 +24,10 @@ static int output_func(JDEC *jdec, void *bitmap, JRECT *rect)
     //ili9341_array_endian_swap((uint16_t*)bitmap, 256);
     //ili9341_draw_region(&lcd_global, col, row, (uint16_t *)bitmap, 1);
     ili9341_draw_buffer(&lcd_global, rect->left, rect->top, rect->right - rect->left +1 , rect->bottom - rect->top +1 , (uint16_t *) bitmap, 1);
+    while(HAL_SPI_GetState(lcd_global.spi_hal) != HAL_SPI_STATE_READY)
+    {
+
+    }
     return 1;
 }
 
