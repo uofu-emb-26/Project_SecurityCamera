@@ -1,3 +1,9 @@
+// TODO: pin remappings
+//   - PB13 -> PB10 (Camera SCK)
+//   - PB15 -> PC3 (Camera MOSI)
+//   - Drive PC0 high
+//   - PB1 -> PB10 (RF CE)
+
 #include "main.h"
 
 // Camera

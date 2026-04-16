@@ -1,3 +1,7 @@
+// TODO: pin remappings
+//   - PB13 -> PB10 (RF SCK)
+//   - Drive PC0 high
+
 #include "main.h"
 #include "stm32f0xx_hal.h"
 #include "jpeg_decode.h"
