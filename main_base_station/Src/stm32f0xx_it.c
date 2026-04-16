@@ -106,12 +106,13 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 
     // Get the current status of the nRF24L01+
     uint8_t status = nrf24l01p_get_status();
+    uint8_t new_status = 0;
 
     // The interrupt was for RX_DR
     if (status & 0x40) {
       // Clear the RX_DR interrupt flag
-      status |= 0x40;
-      write_register(NRF24L01P_REG_STATUS, status);
+      new_status |= 0x40;
+      write_register(NRF24L01P_REG_STATUS, new_status);
 
       // Start a DMA transfer to get the received data
       // NOTE: assumes this nRF24L01+ chip is linked to SPI2
