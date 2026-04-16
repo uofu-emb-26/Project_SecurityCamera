@@ -797,9 +797,10 @@ static JRESULT mcu_output (
 	int yy, cb, cr;
 	jd_yuv_t *py, *pc;
 	uint8_t *pix;
+	JRECT rect;
 
 	// TODO: make `rect` global and insert wait statement below.
-	while(HAL_SPI_GetState(lcd_global.spi_hal) != HAL_SPI_STATE_READY) {}
+	// while(HAL_SPI_GetState(lcd_global.spi_hal) != HAL_SPI_STATE_READY) {}
 
 	mx = jd->msx * 8; my = jd->msy * 8;					/* MCU size (pixel) */
 	rx = (x + mx <= jd->width) ? mx : jd->width - x;	/* Output rectangular size (it may be clipped at right/bottom end of image) */
@@ -809,12 +810,8 @@ static JRESULT mcu_output (
 		if (!rx || !ry) return JDR_OK;					/* Skip this MCU if all pixel is to be rounded off */
 		x >>= jd->scale; y >>= jd->scale;
 	}
-
-	/* Rectangular area in the frame buffer */
-	jd->rect.left = x;
-	jd->rect.right = x + rx - 1;				
-	jd->rect.top = y; 
-	jd->rect.bottom = y + ry - 1;
+	rect.left = x; rect.right = x + rx - 1;				/* Rectangular area in the frame buffer */
+	rect.top = y; rect.bottom = y + ry - 1;
 
 
 	if (!JD_USE_SCALE || jd->scale != 3) {	/* Not for 1/8 scaling */
@@ -951,7 +948,7 @@ static JRESULT mcu_output (
 	}
 
 	/* Output the rectangular */
-	return outfunc(jd, jd->workbuf, &jd->rect) ? JDR_OK : JDR_INTR; 
+	return outfunc(jd, jd->workbuf, &rect) ? JDR_OK : JDR_INTR; 
 }
 
 

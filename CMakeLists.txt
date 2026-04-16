@@ -40,6 +40,7 @@ add_subdirectory(screen)
 add_subdirectory(display)
 add_subdirectory(main_base_station)
 add_subdirectory(main_camera_module)
+add_subdirectory(camera_screen)
 
 # Remove wrong libob.a library dependency when using cpp files
 list(REMOVE_ITEM CMAKE_C_IMPLICIT_LINK_LIBRARIES ob)

@@ -71,7 +71,6 @@ struct JDEC {
 	uint16_t* huffcode[2][2];	/* Huffman code word tables [id][dcac] */
 	uint8_t* huffdata[2][2];	/* Huffman decoded data tables [id][dcac] */
 	int32_t* qttbl[4];			/* Dequantizer tables [id] */
-
 #if JD_FASTDECODE >= 1
 	uint32_t wreg;				/* Working shift register */
 	uint8_t marker;				/* Detected marker (0:None) */
@@ -81,7 +80,6 @@ struct JDEC {
 	uint8_t* hufflut_dc[2];		/* Fast huffman decode tables for DC short code [id] */
 #endif
 #endif
-	JRECT rect;					/* Output rectangular region for current MCU */
 	void* workbuf;				/* Working buffer for IDCT and RGB output */
 	jd_yuv_t* mcubuf;			/* Working buffer for the MCU */
 	void* pool;					/* Pointer to available memory pool */
