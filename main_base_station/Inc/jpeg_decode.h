@@ -3,6 +3,6 @@
 
 #include "ili9341_ext.h"
 
-void jpeg_decode_run(void);
+void jpeg_decode_run(const uint8_t *jpeg, uint32_t len);
 
 #endif
