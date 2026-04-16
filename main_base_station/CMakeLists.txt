@@ -11,6 +11,7 @@ add_executable(main_base_station
     Lib/tjpgd.c
     Src/nrf24l01p.c
     Src/nrf24l01p_ext.c
+    Src/ringbuffer.c
 )
 set_target_properties(main_base_station PROPERTIES ADDITIONAL_CLEAN_FILES main_base_station.map)
 target_include_directories(main_base_station PRIVATE
