@@ -13,6 +13,19 @@ DMA_HandleTypeDef hdma_spi1_tx;
 // Flag raised by camera timer interrupt when it's time to capture a frame
 volatile uint8_t capture_request = 0;
 
+// Variables for transmitting JPEG data from camera over RF chip.
+// Whether the RF chip is ready to transmit another frame
+// (Start out ready to transmit first chunk)
+volatile uint8_t rf_tx_ready = 1;
+// Whether a frame is actively being transmitted
+uint8_t transmitting_frame = 0;
+// JPEG position information
+uint32_t jpeg_index = 0;
+uint32_t jpeg_len = 0;
+const uint8_t *jpeg_buf = NULL;
+// Raised if the RF chip fails to transmit
+volatile uint8_t rf_tx_error = 0;
+
 int main(void)
 {
     // Core initialization
@@ -40,50 +53,99 @@ int main(void)
         .ce_port = GPIOB, .ce_pin = GPIO_PIN_1
     };
     nrf24l01p_tx_init(&tx_pins, 2400, _1Mbps);
-    // TODO: update with correct interrupts for transmission
-    nrf24l01p_mask_tx_interrupts();
+
+    // Only act on interrupts for transmission
+    nrf24l01p_mask_rx_interrupts();
 
     while (1)
     {
-        // TODO: Send the data to the RF chip 32 bytes at a time
-        if (capture_request)
+        // if (capture_request)
+        // {
+        //     capture_request = 0;
+        //     uart3_write_string("timer fired\r\n");
+
+        //     uint32_t len = camera_capture_frame();
+        //     char msg[40];
+        //     snprintf(msg, sizeof(msg), "len=%lu\r\n", len);
+        //     uart3_write_string(msg);
+
+        //     if (len > 0)
+        //     {
+        //         const uint8_t *jpeg = camera_get_buffer();
+        //         spi_send_frame(jpeg, len);
+        //     }
+        // }
+
+        // Get a new camera frame
+        if (capture_request && !transmitting_frame)
         {
+            // Acknowledge the timer-generated request for a new frame
             capture_request = 0;
-            uart3_write_string("timer fired\r\n");
 
-            uint32_t len = camera_capture_frame();
-            char msg[40];
-            snprintf(msg, sizeof(msg), "len=%lu\r\n", len);
-            uart3_write_string(msg);
+            // Copy a compressed image out of the camera's memory into the STM's memory
+            jpeg_len = camera_capture_frame();
 
-            if (len > 0)
+            // If an image was captured, start the process of transmitting it into the RF chip's TX FIFO
+            if (jpeg_len > 0)
             {
-                const uint8_t *jpeg = camera_get_buffer();
-                spi_send_frame(jpeg, len);
+                jpeg_buf = camera_get_buffer();
+                jpeg_index = 0;
+                transmitting_frame = 1;
+            }
+        }
+
+        // Transmit 32 bytes of the current camera frame to the RF chip TX FIFO
+        if (rf_tx_ready && transmitting_frame)
+        {
+            // TODO: check status of rf_tx_error. If this is set, it means some bytes of the image failed to transmit.
+            //       If this case is hit, the synchronization with the base station must be preserved.
+            //         - Keep trying to transmit the same bytes and turn on an error LED in the meantime?
+            //         - Send the 'end-of-JPEG' bytes to terminate the current image?
+
+            uint32_t bytes_remaining = jpeg_len - jpeg_index;
+
+            if (bytes_remaining > 0)
+            {
+                // Send either 32 bytes, or however many are left.
+                uint8_t chunk_size = (bytes_remaining >= 32) ? 32 : bytes_remaining;
+
+                // Copy the chunk of JPEG data into the buffer for transmission to the RF chip
+                memcpy((void*)nrf_tx_buf.tx_data, &jpeg_buf[jpeg_index], chunk_size);
+
+                // Start copying this chunk into the RF chip's FIFO
+                rf_tx_ready = 0;
+                nrf24l01p_tx_transmit_dma(&hspi1);
+
+                jpeg_index += chunk_size;
+            }
+            // Every chunk for this JPEG image has been transmitted
+            else
+            {
+                transmitting_frame = 0;
             }
         }
     }
 }
 
-void spi_send_frame(const uint8_t *data, uint32_t len)
-{
-    uint8_t start[2] = {0xAA, 0x55};
-    uint8_t len_bytes[4];
+// void spi_send_frame(const uint8_t *data, uint32_t len)
+// {
+//     uint8_t start[2] = {0xAA, 0x55};
+//     uint8_t len_bytes[4];
 
-    len_bytes[0] = (uint8_t)(len >> 0);
-    len_bytes[1] = (uint8_t)(len >> 8);
-    len_bytes[2] = (uint8_t)(len >> 16);
-    len_bytes[3] = (uint8_t)(len >> 24);
+//     len_bytes[0] = (uint8_t)(len >> 0);
+//     len_bytes[1] = (uint8_t)(len >> 8);
+//     len_bytes[2] = (uint8_t)(len >> 16);
+//     len_bytes[3] = (uint8_t)(len >> 24);
 
-    OUT_CS_LOW();
+//     OUT_CS_LOW();
 
-    // SPI1_WriteBuffer(start, 2);
-    // SPI1_WriteBuffer(len_bytes, 4);
-    // SPI1_WriteBuffer((uint8_t*)data, len);
+//     SPI1_WriteBuffer(start, 2);
+//     SPI1_WriteBuffer(len_bytes, 4);
+//     SPI1_WriteBuffer((uint8_t*)data, len);
 
-    HAL_Delay(50); 
-    OUT_CS_HIGH();
-}
+//     HAL_Delay(50); 
+//     OUT_CS_HIGH();
+// }
 
 void uart3_write_char(char c)
 {

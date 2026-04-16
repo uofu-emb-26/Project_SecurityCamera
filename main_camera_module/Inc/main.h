@@ -14,6 +14,7 @@ extern "C" {
 #include "stm32f0xx_hal_tim.h"
 #include <stdio.h>
 #include "camera.h"
+#include <string.h>
 
 // Camera CS
 #define OUT_CS_PORT GPIOA

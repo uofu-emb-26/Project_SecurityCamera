@@ -101,3 +101,19 @@ void nrf24l01p_mask_tx_interrupts(void)
     // Write the updated configuration back to the register
     write_register(NRF24L01P_REG_CONFIG, config);
 }
+
+// Update the nRF24L01+'s configuration register so that only the TX_DS and MAX_RT interrupts are enabled
+void nrf24l01p_mask_rx_interrupts(void)
+{
+    // Read the current config register value
+    uint8_t config = read_register(NRF24L01P_REG_CONFIG);
+
+    // Set Bit 6 (MASK_RX_DR) to mask RX_DR interrupts
+    config |= (1 << 6);
+
+    // Clear Bit 5 (MASK_TX_DS) and Bit 4 (MASK_MAX_RT) to ensure these interrupts are enabled
+    config &= ~((1 << 5) | (1 << 4));
+
+    // Write the updated configuration back to the register
+    write_register(NRF24L01P_REG_CONFIG, config);
+}

@@ -65,5 +65,6 @@ int nrf24l01p_read_rx_fifo_dma(SPI_HandleTypeDef *hspi);
 int nrf24l01p_write_tx_fifo_dma(SPI_HandleTypeDef *hspi);
 
 void nrf24l01p_mask_tx_interrupts(void);
+void nrf24l01p_mask_rx_interrupts(void);
 
 #endif  // __NRF24L01P_EXT_H__

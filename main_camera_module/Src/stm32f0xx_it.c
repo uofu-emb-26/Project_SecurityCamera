@@ -16,6 +16,10 @@ extern I2C_HandleTypeDef hi2c1;
 extern TIM_HandleTypeDef htim2;
 extern volatile uint8_t capture_request;
 
+// Camera/RF transmission
+extern volatile uint8_t rf_tx_ready;
+extern volatile uint8_t rf_tx_error;
+
 /******************************************************************************/
 /*           Cortex-M0 Processor Interruption and Exception Handlers          */
 /******************************************************************************/
@@ -102,23 +106,37 @@ void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   if (GPIO_Pin == RF_INT_PIN) {
-    // The only interrupt that the RF chip can trigger is RX_DR (since nrf24l01p_mask_tx_interrupts())
-    // was called during initialization. Therefore, at this point, it's known that the nRF24L01+'s RX FIFO
-    // has valid data, so clear the interrupt flag, then start a DMA transfer to read the data.
+    // On the transmit side, the RF chip may raise either MAX_RT or TX_DS interrupts
 
     // Get the current status of the nRF24L01+
     uint8_t status = nrf24l01p_get_status();
+    uint8_t new_status = 0;
 
-    // The interrupt was for RX_DR
-    if (status & 0x40) {
-      // Clear the RX_DR interrupt flag
-      status |= 0x40;
-      write_register(NRF24L01P_REG_STATUS, status);
-
-      // Start a DMA transfer to get the received data
-      // NOTE: assumes this nRF24L01+ chip is linked to SPI1
-      nrf24l01p_rx_receive_dma(&hspi1);
+    // If TX_DS flag set
+    if (status & (1 << 5))
+    {
+      // Clear the status flag (by writing a 1)
+      new_status |= (1 << 5);
     }
+
+    // If MAX_RT flag set
+    if (status & (1 << 4))
+    {
+      // Clear the status flag (by writing a 1)
+      new_status |= (1 << 4);
+
+      // Clear the TX FIFO on the RF chip
+      nrf24l01p_flush_tx_fifo();
+
+      // Signal that an error has occurred
+      rf_tx_error = 1;
+    }
+
+    // Commit the status register changes
+    write_register(NRF24L01P_REG_STATUS, new_status);
+
+    // Signal that the RF chip is ready for more data
+    rf_tx_ready = 1;
   }
 }
 
