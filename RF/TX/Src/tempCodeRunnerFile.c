@@ -1,5 +1,6 @@
 #include "main.h"
 #include "nrf24l01p.h"
+#include "image_data.h"
 #include <string.h>
 #include <stdio.h>
 
@@ -52,22 +53,22 @@ void SPI2_Init(void) {
     hspi2.Init.CLKPolarity       = SPI_POLARITY_LOW;
     hspi2.Init.CLKPhase          = SPI_PHASE_1EDGE;
     hspi2.Init.NSS               = SPI_NSS_SOFT;
-    hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_32;
+    hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;
     hspi2.Init.FirstBit          = SPI_FIRSTBIT_MSB;
     HAL_SPI_Init(&hspi2);
     }
 
 void USART3_Init(void) {
     __HAL_RCC_USART3_CLK_ENABLE();
-    __HAL_RCC_GPIOA_CLK_ENABLE();
+    __HAL_RCC_GPIOC_CLK_ENABLE();
 
-    // PA4=TX, PA5=RX
+    // PC4=TX, PC5=RX
     GPIO_InitTypeDef initStr_UART = {GPIO_PIN_4 | GPIO_PIN_5,
                                      GPIO_MODE_AF_PP,
                                      GPIO_NOPULL,
                                      GPIO_SPEED_FREQ_HIGH,
                                      GPIO_AF1_USART3};
-    HAL_GPIO_Init(GPIOA, &initStr_UART);
+    HAL_GPIO_Init(GPIOC, &initStr_UART);
 
     huart3.Instance        = USART3;
     huart3.Init.BaudRate   = 115200;
@@ -82,7 +83,7 @@ int main(void) {
     HAL_Init();
     SystemClock_Config();
     SPI2_Init();
-    USART2_Init();
+    USART3_Init();
     HAL_Delay(100);
 
     NRF24_PinConfig tx_pins = {
@@ -95,43 +96,31 @@ int main(void) {
         .ce_port = GPIOB, .ce_pin = GPIO_PIN_11
     };
 
-    nrf24l01p_tx_init(&tx_pins, 2400, _1Mbps);
+    // Set RF speed as 2Mbps
+    nrf24l01p_tx_init(&tx_pins, 2400, _2Mbps);
     HAL_Delay(10);
-    nrf24l01p_rx_init(&rx_pins, 2400, _1Mbps);
+    nrf24l01p_rx_init(&rx_pins, 2400, _2Mbps);
     HAL_Delay(10);
 
-    // nRF24L01+ can send and receive 1-32 bytes per payload
-    uint8_t tx_data[8] = {1, 2, 3, 4, 5, 6, 7, 8};
-    uint8_t rx_data[8] = {0};
-    nrf_active = tx_pins;
-uint8_t tx_config = nrf24l01p_get_status();
+    #define CHUNK_SIZE 32
+    uint8_t rx_chunk[CHUNK_SIZE] = {0}; // Buffer
 
 while (1) {
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9, GPIO_PIN_RESET);
+    for(int i = 0; i < IMAGE_SIZE; i += CHUNK_SIZE)
+    {
+        nrf_active = tx_pins;
+        nrf24l01p_tx_transmit(&image[i]);
+        HAL_Delay(1);
 
-    nrf_active = tx_pins;
-    nrf24l01p_tx_transmit(tx_data);
-    HAL_Delay(20);
-
-    nrf_active = rx_pins;
-    uint8_t status = nrf24l01p_get_status();
-
-    if (status & 0x40) {
-        nrf24l01p_rx_receive(rx_data);
-        if (memcmp(tx_data, rx_data, 8) == 0) {
-            HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_9);  // Green: Success and Matched
-        } 
-        
-        else {
-            HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_SET);  // Oragne: Success and But Not Matched
+        nrf_active = rx_pins;
+        if(nrf24l01p_get_status() & 0x40)
+        {
+            nrf24l01p_rx_receive(rx_chunk);
+            HAL_UART_Transmit(&huart3, rx_chunk, CHUNK_SIZE, 100);
         }
-    } 
-    
-    else {
-        HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_SET);  // RED: Fail
     }
-
     HAL_Delay(1000);
+
   }
 }
 
@@ -146,29 +135,25 @@ void SystemClock_Config(void)
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
 
   /** Initializes the RCC Oscillators according to the specified parameters
-  * in the RCC_OscInitTypeDef structure.
+  * in the RCC_OscInitTypeDef structure. ->**Update to 48MHz**
   */
+  
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
+  RCC_OscInitStruct.PLL.PLLState  = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+  RCC_OscInitStruct.PLL.PLLMUL    = RCC_PLL_MUL6;
+  RCC_OscInitStruct.PLL.PREDIV    = RCC_PREDIV_DIV1;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-  {
     Error_Handler();
-  }
 
-  /** Initializes the CPU, AHB and APB buses clocks
-  */
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
-                              |RCC_CLOCKTYPE_PCLK1;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK|RCC_CLOCKTYPE_PCLK1;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
-
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
-  {
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1) != HAL_OK)
     Error_Handler();
-  }
 }
 
 /**

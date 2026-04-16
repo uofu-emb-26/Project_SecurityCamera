@@ -3,7 +3,7 @@
  *
  *  Created on: 2021. 7. 20.
  *      Author: mokhwasomssi
- *      Modified: Zoey Lee
+ *      Modified: Zoey Lee and Zachary Ward
  * 
  */
 
@@ -32,7 +32,7 @@ extern NRF24_PinConfig nrf_active;
 #define NRF24L01P_IRQ_PIN_PORT            GPIOA
 #define NRF24L01P_IRQ_PIN_NUMBER          GPIO_PIN_8
 
-#define NRF24L01P_PAYLOAD_LENGTH          8     // 1 - 32bytes
+#define NRF24L01P_PAYLOAD_LENGTH          32     // 1 - 32bytes
 
 
 /* nRF24L01+ typedefs */
@@ -70,6 +70,10 @@ void nrf24l01p_tx_irq();
 
 
 /* Sub Functions */
+void cs_high();
+void cs_low();
+uint8_t read_register(uint8_t reg);
+uint8_t write_register(uint8_t reg, uint8_t value);
 void nrf24l01p_reset();
 
 void nrf24l01p_prx_mode();
