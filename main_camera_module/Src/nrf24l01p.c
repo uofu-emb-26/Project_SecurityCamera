@@ -3,7 +3,7 @@
  *
  *  Created on: 2021. 7. 20.
  *      Author: mokhwasomssi
- *      Modified: Zoey Lee
+ *      Modified: Zoey Lee and Zachary Ward
  * 
  */
 
@@ -14,45 +14,11 @@ NRF24_PinConfig nrf_active;
 extern SPI_HandleTypeDef hspi2;
 
 
-static void cs_high() {
-    HAL_GPIO_WritePin(nrf_active.cs_port, nrf_active.cs_pin, GPIO_PIN_SET);
-}
-static void cs_low() {
-    HAL_GPIO_WritePin(nrf_active.cs_port, nrf_active.cs_pin, GPIO_PIN_RESET);
-}
 static void ce_high() {
     HAL_GPIO_WritePin(nrf_active.ce_port, nrf_active.ce_pin, GPIO_PIN_SET);
 }
 static void ce_low() {
     HAL_GPIO_WritePin(nrf_active.ce_port, nrf_active.ce_pin, GPIO_PIN_RESET);
-}
-
-static uint8_t read_register(uint8_t reg)
-{
-    uint8_t command = NRF24L01P_CMD_R_REGISTER | reg;
-    uint8_t status;
-    uint8_t read_val;
-
-    cs_low();
-    HAL_SPI_TransmitReceive(NRF24L01P_SPI, &command, &status, 1, 2000);
-    HAL_SPI_Receive(NRF24L01P_SPI, &read_val, 1, 2000);
-    cs_high();
-
-    return read_val;
-}
-
-static uint8_t write_register(uint8_t reg, uint8_t value)
-{
-    uint8_t command = NRF24L01P_CMD_W_REGISTER | reg;
-    uint8_t status;
-    uint8_t write_val = value;
-
-    cs_low();
-    HAL_SPI_TransmitReceive(NRF24L01P_SPI, &command, &status, 1, 2000);
-    HAL_SPI_Transmit(NRF24L01P_SPI, &write_val, 1, 2000);
-    cs_high();
-
-    return write_val;
 }
 
 
@@ -72,7 +38,7 @@ void nrf24l01p_rx_init(NRF24_PinConfig* pins, channel MHz, air_data_rate bps)
     nrf24l01p_set_rf_tx_output_power(_0dBm);
 
     nrf24l01p_set_crc_length(1);
-    nrf24l01p_set_address_widths(5);
+    nrf24l01p_set_address_widths(3); // Changed to 3 byte addresses to reduce overhead
 
     nrf24l01p_auto_retransmit_count(3);
     nrf24l01p_auto_retransmit_delay(250);
@@ -93,7 +59,7 @@ void nrf24l01p_tx_init(NRF24_PinConfig* pins, channel MHz, air_data_rate bps)
     nrf24l01p_set_rf_tx_output_power(_0dBm);
 
     nrf24l01p_set_crc_length(1);
-    nrf24l01p_set_address_widths(5);
+    nrf24l01p_set_address_widths(3); // Changed to 3 byte addresses to reduce overhead
 
     nrf24l01p_auto_retransmit_count(3);
     nrf24l01p_auto_retransmit_delay(250);
@@ -131,6 +97,41 @@ void nrf24l01p_tx_irq()
 }
 
 /* nRF24L01+ Sub Functions */
+void cs_high() {
+    HAL_GPIO_WritePin(nrf_active.cs_port, nrf_active.cs_pin, GPIO_PIN_SET);
+}
+void cs_low() {
+    HAL_GPIO_WritePin(nrf_active.cs_port, nrf_active.cs_pin, GPIO_PIN_RESET);
+}
+
+uint8_t read_register(uint8_t reg)
+{
+    uint8_t command = NRF24L01P_CMD_R_REGISTER | reg;
+    uint8_t status;
+    uint8_t read_val;
+
+    cs_low();
+    HAL_SPI_TransmitReceive(NRF24L01P_SPI, &command, &status, 1, 2000);
+    HAL_SPI_Receive(NRF24L01P_SPI, &read_val, 1, 2000);
+    cs_high();
+
+    return read_val;
+}
+
+uint8_t write_register(uint8_t reg, uint8_t value)
+{
+    uint8_t command = NRF24L01P_CMD_W_REGISTER | reg;
+    uint8_t status;
+    uint8_t write_val = value;
+
+    cs_low();
+    HAL_SPI_TransmitReceive(NRF24L01P_SPI, &command, &status, 1, 2000);
+    HAL_SPI_Transmit(NRF24L01P_SPI, &write_val, 1, 2000);
+    cs_high();
+
+    return write_val;
+}
+
 void nrf24l01p_reset()
 {
     // Reset pins
@@ -286,7 +287,7 @@ void nrf24l01p_power_down()
     write_register(NRF24L01P_REG_CONFIG, new_config);
 }
 
-void nrf24l01p_set_crc_length(length bytes)
+void nrf24l01p_set_crc_length(rf_length bytes)
 {
     uint8_t new_config = read_register(NRF24L01P_REG_CONFIG);
     

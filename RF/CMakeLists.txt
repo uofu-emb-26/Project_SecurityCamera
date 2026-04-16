@@ -1,25 +1,23 @@
-# Add C source files here.
-add_executable(RF
-    Src/main.c
-    Src/stm32f0xx_it.c
-    Src/stm32f0xx_hal_msp.c
+# TX
+add_executable(RF_TX
+    TX/Src/main.c
+    TX/Src/stm32f0xx_it.c
+    TX/Src/stm32f0xx_hal_msp.c
+    TX/Src/nrf24l01p.c
+    TX/Src/nrf24l01_ext.c
 )
+target_include_directories(RF_TX PRIVATE TX/Inc)
+target_link_libraries(RF_TX STM32_Drivers)
+flash_target(RF_TX)
 
-# Add the map file to the list of files to be removed with 'clean' target
-set_target_properties(RF PROPERTIES ADDITIONAL_CLEAN_FILES RF.map)
-
-# Add user defined include paths
-target_include_directories(RF PRIVATE
-    Inc
+# RX
+add_executable(RF_RX
+    RX/Src/main.c
+    RX/Src/stm32f0xx_it.c
+    RX/Src/stm32f0xx_hal_msp.c
+    RX/Src/nrf24l01p.c
+    RX/Src/nrf24l01_ext.c
 )
-
-# Add project symbols (macros)
-target_compile_definitions(RF PRIVATE
-)
-
-# Add linked libraries
-target_link_libraries(RF
-    STM32_Drivers
-)
-
-flash_target(RF)
+target_include_directories(RF_RX PRIVATE RX/Inc)
+target_link_libraries(RF_RX STM32_Drivers)
+flash_target(RF_RX)

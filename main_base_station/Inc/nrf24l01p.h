@@ -3,7 +3,7 @@
  *
  *  Created on: 2021. 7. 20.
  *      Author: mokhwasomssi
- *      Modified: Zoey Lee
+ *      Modified: Zoey Lee and Zachary Ward
  * 
  */
 
@@ -70,6 +70,10 @@ void nrf24l01p_tx_irq();
 
 
 /* Sub Functions */
+void cs_high();
+void cs_low();
+uint8_t read_register(uint8_t reg);
+uint8_t write_register(uint8_t reg, uint8_t value);
 void nrf24l01p_reset();
 
 void nrf24l01p_prx_mode();

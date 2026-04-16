@@ -38,6 +38,8 @@ add_subdirectory(camera)
 add_subdirectory(RF)
 add_subdirectory(screen)
 add_subdirectory(display)
+add_subdirectory(main_base_station)
+add_subdirectory(main_camera_module)
 add_subdirectory(camera_screen)
 
 # Remove wrong libob.a library dependency when using cpp files
