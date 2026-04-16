@@ -35,10 +35,10 @@ static int output_func(JDEC *jdec, void *bitmap, JRECT *rect)
     //       This will prevent unneeded memory copies, and it's likely the best option.
     //   #2: Copy bitmap into another memory address prior to starting the DMA transfer. This will incur overhead
     //       for copying the memory, which isn't ideal.
-    while(HAL_SPI_GetState(lcd_global.spi_hal) != HAL_SPI_STATE_READY)
-    {
+    // while(HAL_SPI_GetState(lcd_global.spi_hal) != HAL_SPI_STATE_READY)
+    // {
 
-    }
+    // }
     return 1;
 }
 
