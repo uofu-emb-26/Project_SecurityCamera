@@ -51,6 +51,42 @@ In the figure below, green labels indicate signals that are used by this project
 
 ![Screen Pinout](/docs/img/screen_pinout.png "Screen Pinout")
 
+- **<ins>RF Communication</ins>**
+ - This project uses two STM32 boards for transmitting (TX) and receiving (RX) image data via nRF24L01+ RF modules.
+- Each STM32 board communicates with its nRF24L01+ module over SPI (SCK, MOSI, MISO, CSN, CE, IRQ).
+- The RX STM32 board forwards the received data to a PC via a USB-UART bridge.
+
+  ### TX STM32 ↔ nRF24L01+ (TX)
+  | STM32 Pin | nRF24 Pin | Description |
+  |-----------|-----------|-------------|
+  | PB13 | SCK | SPI clock |
+  | PB14 | MISO | SPI data: nRF24 → STM32 |
+  | PC3 | MOSI | SPI data: STM32 → nRF24 |
+  | PB12 | CSN | Chip select (active low) |
+  | PB1 | CE | TX/RX mode control |
+  | PA0 | IRQ | Interrupt: tx done / error |
+  | 3.3V | VCC | Power |
+  | GND | GND | Ground |
+
+  ### RX STM32 ↔ nRF24L01+ (RX)
+  | STM32 Pin | nRF24 Pin | Description |
+  |-----------|-----------|-------------|
+  | PB13 | SCK | SPI clock |
+  | PB14 | MISO | SPI data: nRF24 → STM32 |
+  | PC3 | MOSI | SPI data: STM32 → nRF24 |
+  | PB10 | CSN | Chip select (active low) |
+  | PB11 | CE | TX/RX mode control |
+  | PA0 | IRQ | Interrupt: data received |
+  | 3.3V | VCC | Power |
+  | GND | GND | Ground |
+
+  ### RX STM32 ↔ USB-UART Bridge (PC)
+  | STM32 Pin | UART Pin | Description |
+  |-----------|----------|-------------|
+  | PC4 | RX | STM32 → PC (image data out) |
+  | PC5 | TX | PC → STM32 (optional control) |
+  | GND | GND | Ground |
+
 ### Wiring Diagram
 To wire the screen using the STM32F072's SPI1 interface for the screen demonstration at [/screen](/screen/), use the wiring diagram below.
 
