@@ -19,6 +19,32 @@ SPI_HandleTypeDef hspi2;
 DMA_HandleTypeDef hdma_spi2_rx;
 DMA_HandleTypeDef hdma_spi2_tx;
 
+// Image packets (for RF transmission)
+#define DATA_PER_PACKET (NRF24L01P_PAYLOAD_LENGTH - 4) // 2 bytes (packet_id) + 2 bytes (total_packets)
+typedef struct {
+    uint16_t packet_id;
+    uint16_t total_packets;
+    uint8_t  data[DATA_PER_PACKET];
+} __attribute__((packed)) ImagePacket;
+
+#define MAX_JPEG_SIZE 10000 // Max supported JPEG size in bytes
+#define MAX_PACKETS ((MAX_JPEG_SIZE + DATA_PER_PACKET - 1) / DATA_PER_PACKET)
+
+// RF packets are loaded into this buffer before running jpeg_decode_run() on it
+uint8_t image_buffer[MAX_JPEG_SIZE] = {0};
+
+// Determines whether each packet for a transmission has been received
+// packet_received[packet_id] == 0 means packet_id packet hasn't been received yet
+// packet_received[packet_id] == 1 means packet_id packet has been received
+uint8_t packet_received[MAX_PACKETS] = {0};
+
+// The nRF24L01+ transmits a maximum of ~41 bytes per packet for a 32 byte packet.
+// At the 2 Mbps transmission rate, this means that ~6098 packets will be transmitted per second,
+// which is ~0.164 ms per packet. If, in the middle of a transaction, a packet hasn't been received
+// for the equivalent of 100 packets (16.4 ms) + some fudge factor, stop trying to receive this image
+// and reset for the next image.
+#define MS_UNTIL_RESET 20
+
 int main(void)
 {
     // Core initialization
@@ -51,15 +77,72 @@ int main(void)
         .cs_port = GPIOB, .cs_pin = GPIO_PIN_10,
         .ce_port = GPIOB, .ce_pin = GPIO_PIN_11
     };
-    nrf24l01p_rx_init(&rx_pins, 2400, _1Mbps);
+    nrf24l01p_rx_init(&rx_pins, 2400, _1Mbps); // TODO: change to _2Mbps
     nrf24l01p_mask_tx_interrupts();
 
+    uint16_t total_packets = 0;
+    uint16_t packets_remaining = 0;
+    uint32_t last_packet_time = 0;
+    ImagePacket *pkt = (ImagePacket *)nrf_rx_buf.rx_data;
     while (1)
     {
-        // TODO: use nrf_rx_buf and nrf_data_received to get data from RF chip
-        // TODO: pass received data to jpeg decoder
-        // jpeg_decode_run();
+        if (nrf_data_received)
+        {
+            nrf_data_received = 0;
+            // As a 32-bit value, this won't overflow for ~50 days.
+            last_packet_time = HAL_GetTick();
+
+            if (pkt->total_packets <= MAX_PACKETS) // Ignore images that are too large
+            {
+                // Initialization for the first packet of a new image
+                if (total_packets == 0)
+                {
+                    total_packets = pkt->total_packets;
+                    packets_remaining = pkt->total_packets;
+                }
+
+                // Only process the packet if it's valid (belongs to the current image and has a valid packet ID) and new
+                if ((pkt->total_packets == total_packets) && (pkt->packet_id < total_packets) && !packet_received[pkt->packet_id])
+                {
+                    uint32_t offset = pkt->packet_id * DATA_PER_PACKET;
+                
+                    // Move the data portion of the packet into the JPEG image buffer
+                    memcpy(&image_buffer[offset], pkt->data, DATA_PER_PACKET);
+
+                    // Mark this packet as received
+                    packet_received[pkt->packet_id] = 1;
+                    packets_remaining--;
+
+                    // All packets for this image have been received, so pass the image off to the
+                    // JPEG decompression algorithm to render it on the screen.
+                    if (!packets_remaining)
+                    {
+                        // The image buffer may have some padding. The TJpegDec library supports this: if the 
+                        // passed image length is greater than the actual image size, the TJpegDec library stops
+                        // parsing at the end-of-JPEG marker.
+                        uint32_t total_len = total_packets * DATA_PER_PACKET;
+                        
+                        // Render the JPEG image on screen
+                        jpeg_decode_run(image_buffer, total_len);
+
+                        // Reset packet status
+                        total_packets = 0;
+                        memset(packet_received, 0, sizeof(packet_received));
+                    }
+                }
+            }
+        }
+
+        // If we've stopped receiving packets in the middle of an image (possibly due to RF interference),
+        // just drop this image and reset for the next one.
+        if ((total_packets > 0) && ((HAL_GetTick() - last_packet_time) > MS_UNTIL_RESET))
+        {
+            total_packets = 0;
+            memset(packet_received, 0, sizeof(packet_received));
+        }
     }
+
+    // TODO: balance buffer sizes for (image buffer + packet_received) with work area for TJpegDec
 }
 
 void SystemClock_Config(void)

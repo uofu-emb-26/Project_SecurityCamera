@@ -32,7 +32,7 @@ extern NRF24_PinConfig nrf_active;
 #define NRF24L01P_IRQ_PIN_PORT            GPIOA
 #define NRF24L01P_IRQ_PIN_NUMBER          GPIO_PIN_8
 
-#define NRF24L01P_PAYLOAD_LENGTH          8     // 1 - 32bytes
+#define NRF24L01P_PAYLOAD_LENGTH          32     // 1 - 32bytes
 
 
 /* nRF24L01+ typedefs */

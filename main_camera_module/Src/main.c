@@ -32,6 +32,14 @@ const uint8_t *jpeg_buf = NULL;
 // Raised if the RF chip fails to transmit
 volatile uint8_t rf_tx_error = 0;
 
+// Image packets (for RF transmission)
+#define DATA_PER_PACKET (NRF24L01P_PAYLOAD_LENGTH - 4) // 2 bytes (packet_id) + 2 bytes (total_packets)
+typedef struct {
+    uint16_t packet_id;
+    uint16_t total_packets;
+    uint8_t  data[DATA_PER_PACKET];
+} __attribute__((packed)) ImagePacket;
+
 int main(void)
 {
     // Core initialization
@@ -58,30 +66,14 @@ int main(void)
         .cs_port = GPIOB, .cs_pin = GPIO_PIN_12,
         .ce_port = GPIOB, .ce_pin = GPIO_PIN_1
     };
-    nrf24l01p_tx_init(&tx_pins, 2400, _1Mbps);
+    nrf24l01p_tx_init(&tx_pins, 2400, _1Mbps); // TODO: change to _2Mbps
 
     // Only act on interrupts for transmission
     nrf24l01p_mask_rx_interrupts();
 
+    ImagePacket *pkt = (ImagePacket *)nrf_tx_buf.tx_data;
     while (1)
     {
-        // if (capture_request)
-        // {
-        //     capture_request = 0;
-        //     uart3_write_string("timer fired\r\n");
-
-        //     uint32_t len = camera_capture_frame();
-        //     char msg[40];
-        //     snprintf(msg, sizeof(msg), "len=%lu\r\n", len);
-        //     uart3_write_string(msg);
-
-        //     if (len > 0)
-        //     {
-        //         const uint8_t *jpeg = camera_get_buffer();
-        //         spi_send_frame(jpeg, len);
-        //     }
-        // }
-
         // Get a new camera frame
         if (capture_request && !transmitting_frame)
         {
@@ -105,18 +97,28 @@ int main(void)
         {
             // TODO: check status of rf_tx_error. If this is set, it means some bytes of the image failed to transmit.
             //       If this case is hit, the synchronization with the base station must be preserved.
-            //         - Keep trying to transmit the same bytes and turn on an error LED in the meantime?
-            //         - Send the 'end-of-JPEG' bytes to terminate the current image?
+            //       Solution: Wait for at least 5 ms, then reset with next image
 
             uint32_t bytes_remaining = jpeg_len - jpeg_index;
 
             if (bytes_remaining > 0)
             {
-                // Send either 32 bytes, or however many are left.
-                uint8_t chunk_size = (bytes_remaining >= 32) ? 32 : bytes_remaining;
+                // Send either DATA_PER_PACKET bytes, or however many are left
+                uint8_t chunk_size = (bytes_remaining >= DATA_PER_PACKET) ? DATA_PER_PACKET : bytes_remaining;
 
-                // Copy the chunk of JPEG data into the buffer for transmission to the RF chip
-                memcpy((void*)nrf_tx_buf.tx_data, &jpeg_buf[jpeg_index], chunk_size);
+                // Create the packet header
+                pkt->packet_id = jpeg_index / DATA_PER_PACKET;
+                pkt->total_packets = (jpeg_len + DATA_PER_PACKET - 1) / DATA_PER_PACKET;
+
+                // Copy the next JPEG bytes into the data section of the transmission packet
+                memcpy(pkt->data, &jpeg_buf[jpeg_index], chunk_size);
+
+                // Zero-out the remaining memory for the final packet
+                if (chunk_size < DATA_PER_PACKET) 
+                {
+                    uint8_t padding_bytes = DATA_PER_PACKET - chunk_size;
+                    memset(&pkt->data[chunk_size], 0, padding_bytes);
+                }
 
                 // Start copying this chunk into the RF chip's FIFO
                 rf_tx_ready = 0;
@@ -132,26 +134,6 @@ int main(void)
         }
     }
 }
-
-// void spi_send_frame(const uint8_t *data, uint32_t len)
-// {
-//     uint8_t start[2] = {0xAA, 0x55};
-//     uint8_t len_bytes[4];
-
-//     len_bytes[0] = (uint8_t)(len >> 0);
-//     len_bytes[1] = (uint8_t)(len >> 8);
-//     len_bytes[2] = (uint8_t)(len >> 16);
-//     len_bytes[3] = (uint8_t)(len >> 24);
-
-//     OUT_CS_LOW();
-
-//     SPI1_WriteBuffer(start, 2);
-//     SPI1_WriteBuffer(len_bytes, 4);
-//     SPI1_WriteBuffer((uint8_t*)data, len);
-
-//     HAL_Delay(50); 
-//     OUT_CS_HIGH();
-// }
 
 void uart3_write_char(char c)
 {
