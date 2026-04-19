@@ -6,6 +6,11 @@
 //         - Red (1 second flash): unable to decompress JPEG image
 //         - Orange (1 second flash): image reception error (possibly due to RF interference)
 
+// NOTE: Interrupt priorities
+//         - 0: SysTick
+//         - 1: RF and Display DMA interrupts
+//         - 3: External RF interrupts (EXTI-based)
+
 #include "main.h"
 #include "stm32f0xx_hal.h"
 #include "jpeg_decode.h"
@@ -294,7 +299,8 @@ void EXTI_Init(void)
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
     // Enable the NVIC interrupt for EXTI lines 2 and 3
-    HAL_NVIC_SetPriority(EXTI2_3_IRQn, 0, 0);
+    // RF chip interrupts require blocking SPI transactions, so they have the lowest priority
+    HAL_NVIC_SetPriority(EXTI2_3_IRQn, 3, 0);
     HAL_NVIC_EnableIRQ(EXTI2_3_IRQn);
 }
 
@@ -304,11 +310,11 @@ void DMA_Init(void)
   __HAL_RCC_DMA1_CLK_ENABLE();
 
   // RF DMA Interrupt
-  HAL_NVIC_SetPriority(DMA1_Channel4_5_6_7_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(DMA1_Channel4_5_6_7_IRQn, 1, 0);
   HAL_NVIC_EnableIRQ(DMA1_Channel4_5_6_7_IRQn);
 
   // Display DMA Interrupt
-  HAL_NVIC_SetPriority(DMA1_Channel2_3_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(DMA1_Channel2_3_IRQn, 1, 0);
   HAL_NVIC_EnableIRQ(DMA1_Channel2_3_IRQn);
 }
 

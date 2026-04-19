@@ -8,6 +8,12 @@
 //         - Red (1 second flash): unable to get image from camera (possibly too big (larger than 10 KB))
 //         - Orange (1 second flash): image transmission error (possibly due to RF interference)
 
+// NOTE: Interrupt priorities
+//         - 0: SysTick
+//         - 1: RF DMA interrupts
+//         - 2: Camera-capture timer
+//         - 3: External RF interrupts (EXTI-based)
+
 #include "main.h"
 
 // Camera
@@ -228,7 +234,7 @@ void TIM2_Init(void){
 
     HAL_TIM_Base_Init(&htim2);
 
-    HAL_NVIC_SetPriority(TIM2_IRQn, 0, 0);
+    HAL_NVIC_SetPriority(TIM2_IRQn, 2, 0);
     HAL_NVIC_EnableIRQ(TIM2_IRQn);
 
     HAL_TIM_Base_Start_IT(&htim2);
@@ -323,7 +329,8 @@ void EXTI_Init(void)
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
     // Enable the NVIC interrupt for EXTI lines 2 and 3
-    HAL_NVIC_SetPriority(EXTI2_3_IRQn, 0, 0);
+    // RF chip interrupts require blocking SPI transactions, so they have the lowest priority
+    HAL_NVIC_SetPriority(EXTI2_3_IRQn, 3, 0);
     HAL_NVIC_EnableIRQ(EXTI2_3_IRQn);
 }
 
@@ -333,7 +340,7 @@ void DMA_Init(void)
   __HAL_RCC_DMA1_CLK_ENABLE();
 
   // RF DMA Interrupt
-  HAL_NVIC_SetPriority(DMA1_Channel2_3_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(DMA1_Channel2_3_IRQn, 1, 0);
   HAL_NVIC_EnableIRQ(DMA1_Channel2_3_IRQn);
 }
 
