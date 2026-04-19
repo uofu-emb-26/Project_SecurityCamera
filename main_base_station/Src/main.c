@@ -1,7 +1,3 @@
-// TODO: pin remappings
-//   - PB13 -> PB10 (RF SCK)
-//   - Drive PC0 high
-
 // NOTE: LED meanings
 //         - Red (1 second flash): unable to decompress JPEG image
 //         - Orange (1 second flash): image reception error (possibly due to RF interference)
@@ -283,6 +279,14 @@ void GPIO_Init(void)
     GPIO_InitStruct.Pull  = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+    // Initialize and drive PC0 high to prevent conflicts with gyroscope on SPI2
+    GPIO_InitStruct.Pin = GPIO_PIN_0;
+    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+    GPIO_InitStruct.Pull  = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_0, GPIO_PIN_SET);
 }
 
 void EXTI_Init(void)

@@ -1,9 +1,3 @@
-// TODO: pin remappings
-//   - PB13 -> PB10 (Camera SCK)
-//   - PB15 -> PC3 (Camera MOSI)
-//   - Drive PC0 high
-//   - PB1 -> PB10 (RF CE)
-
 // NOTE: LED meanings
 //         - Red (1 second flash): unable to get image from camera (possibly too big (larger than 10 KB))
 //         - Orange (1 second flash): image transmission error (possibly due to RF interference)
@@ -66,7 +60,7 @@ int main(void)
     // RF Chip initialization
     NRF24_PinConfig tx_pins = {
         .cs_port = GPIOB, .cs_pin = GPIO_PIN_12,
-        .ce_port = GPIOB, .ce_pin = GPIO_PIN_1
+        .ce_port = GPIOC, .ce_pin = GPIO_PIN_4
     };
     nrf24l01p_tx_init(&tx_pins, 2400, _1Mbps); // TODO: change to _2Mbps
 
@@ -299,12 +293,19 @@ void GPIO_Init(void)
     // Camera CS Pin starts high
     OUT_CS_HIGH();
 
-    // RF chip pin initialization (CSN=PB12 and CE=PB1)
-    GPIO_InitStruct.Pin = GPIO_PIN_12 | GPIO_PIN_1;
+    // RF chip pin initialization (CSN=PB12)
+    GPIO_InitStruct.Pin = GPIO_PIN_12;
     GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
     GPIO_InitStruct.Pull  = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+    // RF chip pin initialization (CE=PC4)
+    GPIO_InitStruct.Pin = GPIO_PIN_4;
+    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+    GPIO_InitStruct.Pull  = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
     // LED initialization
     GPIO_InitStruct.Pin = GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9;
@@ -312,6 +313,14 @@ void GPIO_Init(void)
     GPIO_InitStruct.Pull  = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+    // Initialize and drive PC0 high to prevent conflicts with gyroscope on SPI2
+    GPIO_InitStruct.Pin = GPIO_PIN_0;
+    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+    GPIO_InitStruct.Pull  = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_0, GPIO_PIN_SET);
 }
 
 void EXTI_Init(void)
