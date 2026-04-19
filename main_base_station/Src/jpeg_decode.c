@@ -66,7 +66,7 @@ static int output_func(JDEC *jdec, void *bitmap, JRECT *rect)
     return 1;
 }
 
-void jpeg_decode_run(const uint8_t *jpeg, uint32_t len)
+uint8_t jpeg_decode_run(const uint8_t *jpeg, uint32_t len)
 {
     JDEC    jdec;
 
@@ -74,6 +74,15 @@ void jpeg_decode_run(const uint8_t *jpeg, uint32_t len)
     s_jpeg_len = len;
     s_pos      = 0;
 
-    if (jd_prepare(&jdec, input_func, jpeg_workarea, sizeof(jpeg_workarea), NULL) != JDR_OK) return;
-    jd_decomp(&jdec, output_func, 0);
+    if (jd_prepare(&jdec, input_func, jpeg_workarea, sizeof(jpeg_workarea), NULL) != JDR_OK) 
+    {
+        return 0;
+    }
+
+    if (jd_decomp(&jdec, output_func, 0) != JDR_OK)
+    {
+        return 0;
+    }
+
+    return 1;
 }

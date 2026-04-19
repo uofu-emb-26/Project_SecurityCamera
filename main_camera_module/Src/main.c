@@ -4,6 +4,10 @@
 //   - Drive PC0 high
 //   - PB1 -> PB10 (RF CE)
 
+// NOTE: LED meanings
+//         - Red (1 second flash): unable to get image from camera (possibly too big (larger than 10 KB))
+//         - Orange (1 second flash): image transmission error (possibly due to RF interference)
+
 #include "main.h"
 
 // Camera
@@ -31,16 +35,6 @@ uint32_t jpeg_len = 0;
 const uint8_t *jpeg_buf = NULL;
 // Raised if the RF chip fails to transmit
 volatile uint8_t rf_tx_error = 0;
-
-// Image packets (for RF transmission)
-#define DATA_PER_PACKET (NRF24L01P_PAYLOAD_LENGTH - 4) // 2 bytes (packet_id) + 2 bytes (total_packets)
-typedef struct {
-    uint16_t packet_id;
-    uint16_t total_packets;
-    uint8_t  data[DATA_PER_PACKET];
-} __attribute__((packed)) ImagePacket;
-
-#define MAX_JPEG_SIZE 10000 // Max supported JPEG size in bytes
 
 int main(void)
 {
@@ -73,6 +67,8 @@ int main(void)
     // Only act on interrupts for transmission
     nrf24l01p_mask_rx_interrupts();
 
+    uint32_t flash_red = 0;
+    uint32_t flash_orange = 0;
     ImagePacket *pkt = (ImagePacket *)nrf_tx_buf.tx_data;
     while (1)
     {
@@ -92,14 +88,27 @@ int main(void)
                 jpeg_index = 0;
                 transmitting_frame = 1;
             }
+            // Otherwise, flash the red LED
+            else
+            {
+                flash_red = HAL_GetTick() | 1; // Make this isn't 0 so that it triggers (negligible effect for 1000ms flash)
+            }
         }
 
         // Transmit 32 bytes of the current camera frame to the RF chip TX FIFO
         if (rf_tx_ready && transmitting_frame)
         {
-            // TODO: check status of rf_tx_error. If this is set, it means some bytes of the image failed to transmit.
-            //       If this case is hit, the synchronization with the base station must be preserved.
-            //       Solution: Wait for at least 5 ms, then reset with next image
+            if (rf_tx_error)
+            {
+                rf_tx_error = 0;
+
+                // Clear the TX FIFO on the RF chip
+                nrf24l01p_flush_tx_fifo();
+
+                transmitting_frame = 0;
+                flash_orange = HAL_GetTick() | 1;
+                continue;
+            }
 
             uint32_t bytes_remaining = jpeg_len - jpeg_index;
 
@@ -134,7 +143,35 @@ int main(void)
                 transmitting_frame = 0;
             }
         }
+
+        // LED flash logic
+        led_flash_handler(&flash_red, 1000, RED_PIN);
+        led_flash_handler(&flash_orange, 1000, ORANGE_PIN);
     }
+
+    // TODO: Set camera capture rate slow enough that base station has time to decompress the JPEG and draw the screen
+    //       before the next image begins to be transmitted
+}
+
+void led_flash_handler(uint32_t *flash_var, uint16_t time_ms, uint16_t pin)
+{
+    // Use flash_var as the indicator for whether the LED should flash as well as the amount of time
+    // it should flash for
+    if (*flash_var)
+        {
+            // Turn the LED on if less than the requested amount of time has passed
+            if ((HAL_GetTick() - *flash_var) < time_ms)
+            {
+                HAL_GPIO_WritePin(GPIOC, pin, GPIO_PIN_SET);
+            }
+            // Otherwise, turn it back off
+            else
+            {
+                HAL_GPIO_WritePin(GPIOC, pin, GPIO_PIN_RESET);
+                // Mark this flash event as handled
+                *flash_var = 0;
+            }
+        }
 }
 
 void uart3_write_char(char c)
@@ -274,7 +311,8 @@ void GPIO_Init(void)
 void EXTI_Init(void)
 {
     GPIO_InitTypeDef GPIO_InitStruct = {0};
-
+    
+    __HAL_RCC_SYSCFG_CLK_ENABLE();
     __HAL_RCC_GPIOB_CLK_ENABLE();
 
     // Configure PB2 as an External Interrupt (Falling Edge) for the RF chip

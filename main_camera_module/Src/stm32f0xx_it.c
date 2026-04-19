@@ -125,9 +125,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
       // Clear the status flag (by writing a 1)
       new_status |= (1 << 4);
 
-      // Clear the TX FIFO on the RF chip
-      nrf24l01p_flush_tx_fifo();
-
       // Signal that an error has occurred
       rf_tx_error = 1;
     }

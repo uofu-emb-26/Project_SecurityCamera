@@ -2,6 +2,10 @@
 //   - PB13 -> PB10 (RF SCK)
 //   - Drive PC0 high
 
+// NOTE: LED meanings
+//         - Red (1 second flash): unable to decompress JPEG image
+//         - Orange (1 second flash): image reception error (possibly due to RF interference)
+
 #include "main.h"
 #include "stm32f0xx_hal.h"
 #include "jpeg_decode.h"
@@ -89,14 +93,14 @@ int main(void)
     uint16_t total_packets = 0;
     uint16_t packets_remaining = 0;
     uint32_t last_packet_time = 0;
+    uint32_t flash_red = 0;
+    uint32_t flash_orange = 0;
     ImagePacket *pkt = (ImagePacket *)nrf_rx_buf.rx_data;
     while (1)
     {
         if (nrf_data_received)
         {
             nrf_data_received = 0;
-            // As a 32-bit value, this won't overflow for ~50 days.
-            last_packet_time = HAL_GetTick();
 
             if (pkt->total_packets <= MAX_PACKETS) // Ignore images that are too large
             {
@@ -110,6 +114,10 @@ int main(void)
                 // Only process the packet if it's valid (belongs to the current image and has a valid packet ID) and new
                 if ((pkt->total_packets == total_packets) && (pkt->packet_id < total_packets) && !(BITFIELD32_IS_BIT_SET(packet_received, pkt->packet_id)))
                 {
+                    // As a 32-bit value, this won't overflow for ~50 days.
+                    // Only valid packets reset the last packet time
+                    last_packet_time = HAL_GetTick();
+
                     uint32_t offset = pkt->packet_id * DATA_PER_PACKET;
                 
                     // Move the data portion of the packet into the JPEG image buffer
@@ -129,7 +137,11 @@ int main(void)
                         uint32_t total_len = total_packets * DATA_PER_PACKET;
                         
                         // Render the JPEG image on screen
-                        jpeg_decode_run(image_buffer, total_len);
+                        if (!jpeg_decode_run(image_buffer, total_len))
+                        {
+                            // Flash the red LED if the JPEG couldn't be decompressed and drawn
+                            flash_red = HAL_GetTick() | 1; // Make this isn't 0 so that it triggers (negligible effect for 1000ms flash)
+                        }
 
                         // Reset packet status
                         total_packets = 0;
@@ -145,10 +157,36 @@ int main(void)
         {
             total_packets = 0;
             memset(packet_received, 0, sizeof(packet_received));
-        }
-    }
 
-    // TODO: balance buffer sizes for (image buffer + packet_received) with work area for TJpegDec
+            // Flash the orange LED
+            flash_orange = HAL_GetTick() | 1;
+        }
+
+        // LED flash logic
+        led_flash_handler(&flash_red, 1000, RED_PIN);
+        led_flash_handler(&flash_orange, 1000, ORANGE_PIN);
+    }
+}
+
+void led_flash_handler(uint32_t *flash_var, uint16_t time_ms, uint16_t pin)
+{
+    // Use flash_var as the indicator for whether the LED should flash as well as the amount of time
+    // it should flash for
+    if (*flash_var)
+        {
+            // Turn the LED on if less than the requested amount of time has passed
+            if ((HAL_GetTick() - *flash_var) < time_ms)
+            {
+                HAL_GPIO_WritePin(GPIOC, pin, GPIO_PIN_SET);
+            }
+            // Otherwise, turn it back off
+            else
+            {
+                HAL_GPIO_WritePin(GPIOC, pin, GPIO_PIN_RESET);
+                // Mark this flash event as handled
+                *flash_var = 0;
+            }
+        }
 }
 
 void SystemClock_Config(void)
@@ -181,7 +219,6 @@ void SPI1_Init(void)
     hspi1.Init.CRCCalculation    = SPI_CRCCALCULATION_DISABLE;
     hspi1.Init.CRCPolynomial     = 7;
     hspi1.Init.CRCLength         = SPI_CRC_LENGTH_DATASIZE;
-    hspi1.Init.NSSPMode          = SPI_NSS_PULSE_ENABLE;
     if (HAL_SPI_Init(&hspi1) != HAL_OK) Error_Handler();
 }
 

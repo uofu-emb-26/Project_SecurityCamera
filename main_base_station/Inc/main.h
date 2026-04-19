@@ -18,6 +18,12 @@ extern "C" {
 #define TFT_DC_Pin GPIO_PIN_10
 #define TFT_DC_GPIO_Port GPIOA
 
+void led_flash_handler(uint32_t *flash_var, uint16_t time_ms, uint16_t pin);
+#define RED_PIN GPIO_PIN_6
+#define ORANGE_PIN GPIO_PIN_8
+#define BLUE_PIN GPIO_PIN_7
+#define GREEN_PIN GPIO_PIN_9
+
 void Error_Handler(void);
 void SystemClock_Config(void);
 void GPIO_Init(void);
