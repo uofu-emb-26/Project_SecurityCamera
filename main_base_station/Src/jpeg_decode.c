@@ -8,6 +8,10 @@ static const uint8_t *s_jpeg_buf;
 static uint32_t s_jpeg_len;
 static uint32_t s_pos;
 
+// The work area used by the TJpegDec library
+// It should be word-aligned
+uint8_t jpeg_workarea[3100] __attribute__((aligned(4)));
+
 void uart3_write_string(const char *s);
 
 static size_t input_func(JDEC *jdec, uint8_t *buf, size_t ndata)
@@ -65,12 +69,11 @@ static int output_func(JDEC *jdec, void *bitmap, JRECT *rect)
 void jpeg_decode_run(const uint8_t *jpeg, uint32_t len)
 {
     JDEC    jdec;
-    static uint8_t work[3800];
-    
+
     s_jpeg_buf = jpeg;
     s_jpeg_len = len;
     s_pos      = 0;
 
-    if (jd_prepare(&jdec, input_func, work, sizeof(work), NULL) != JDR_OK) return;
+    if (jd_prepare(&jdec, input_func, jpeg_workarea, sizeof(jpeg_workarea), NULL) != JDR_OK) return;
     jd_decomp(&jdec, output_func, 0);
 }

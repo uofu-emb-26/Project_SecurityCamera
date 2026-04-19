@@ -24,6 +24,18 @@ include(gcc-arm-none-eabi)
 project(${CMAKE_PROJECT_NAME})
 message("Build type: " ${CMAKE_BUILD_TYPE})
 
+# Wrap all heap memory functions so they can't be found by the linker.
+# This will cause the build to fail if any heap memory is used anywhere,
+# which is necessary to prevent runtime crashes because STM32F072XX_FLASH.ld
+# has been modified to entirely remove heap memory to save RAM.
+add_link_options(
+    "LINKER:--wrap,malloc"
+    "LINKER:--wrap,calloc"
+    "LINKER:--wrap,realloc"
+    "LINKER:--wrap,free"
+    "LINKER:--wrap,_sbrk"
+    "LINKER:--wrap,__aeabi_atexit"
+)
 
 # Enable CMake support for ASM and C languages
 enable_language(C ASM)

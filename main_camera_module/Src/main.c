@@ -40,6 +40,8 @@ typedef struct {
     uint8_t  data[DATA_PER_PACKET];
 } __attribute__((packed)) ImagePacket;
 
+#define MAX_JPEG_SIZE 10000 // Max supported JPEG size in bytes
+
 int main(void)
 {
     // Core initialization
@@ -84,7 +86,7 @@ int main(void)
             jpeg_len = camera_capture_frame();
 
             // If an image was captured, start the process of transmitting it into the RF chip's TX FIFO
-            if (jpeg_len > 0)
+            if ((jpeg_len > 0) && (jpeg_len < MAX_JPEG_SIZE))
             {
                 jpeg_buf = camera_get_buffer();
                 jpeg_index = 0;

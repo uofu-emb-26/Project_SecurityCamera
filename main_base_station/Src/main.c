@@ -31,12 +31,18 @@ typedef struct {
 #define MAX_PACKETS ((MAX_JPEG_SIZE + DATA_PER_PACKET - 1) / DATA_PER_PACKET)
 
 // RF packets are loaded into this buffer before running jpeg_decode_run() on it
+// This takes the majority of this STM32's RAM
 uint8_t image_buffer[MAX_JPEG_SIZE] = {0};
 
 // Determines whether each packet for a transmission has been received
-// packet_received[packet_id] == 0 means packet_id packet hasn't been received yet
-// packet_received[packet_id] == 1 means packet_id packet has been received
-uint8_t packet_received[MAX_PACKETS] = {0};
+// 0 means the packet hasn't been received yet
+// 1 means the packet has been received
+// Values are stored as a bitfield, so each packet id must be checked by dividing by 32
+// to index into this array and then masking to find the corresponding bit's value
+uint32_t packet_received[(MAX_PACKETS + 31) / 32] = {0};
+#define BITFIELD32_IS_BIT_SET(bitfield, bit) (!!((bitfield)[(bit) / 32] & (1U << ((bit) % 32))))
+#define BITFIELD32_SET_BIT(bitfield, bit) ((bitfield)[(bit) / 32] |= (1U << ((bit) % 32)))
+#define BITFIELD32_CLEAR_BIT(bitfield, bit) ((bitfield)[(bit) / 32] &= ~(1U << ((bit) % 32)))
 
 // The nRF24L01+ transmits a maximum of ~41 bytes per packet for a 32 byte packet.
 // At the 2 Mbps transmission rate, this means that ~6098 packets will be transmitted per second,
@@ -102,7 +108,7 @@ int main(void)
                 }
 
                 // Only process the packet if it's valid (belongs to the current image and has a valid packet ID) and new
-                if ((pkt->total_packets == total_packets) && (pkt->packet_id < total_packets) && !packet_received[pkt->packet_id])
+                if ((pkt->total_packets == total_packets) && (pkt->packet_id < total_packets) && !(BITFIELD32_IS_BIT_SET(packet_received, pkt->packet_id)))
                 {
                     uint32_t offset = pkt->packet_id * DATA_PER_PACKET;
                 
@@ -110,7 +116,7 @@ int main(void)
                     memcpy(&image_buffer[offset], pkt->data, DATA_PER_PACKET);
 
                     // Mark this packet as received
-                    packet_received[pkt->packet_id] = 1;
+                    BITFIELD32_SET_BIT(packet_received, pkt->packet_id);
                     packets_remaining--;
 
                     // All packets for this image have been received, so pass the image off to the

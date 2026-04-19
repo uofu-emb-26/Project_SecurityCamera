@@ -5,7 +5,7 @@
 #include "main.h"
 
 #define OV2640_I2C_ADDR 0x60
-#define CAMERA_BUFFER_SIZE 4000
+#define CAMERA_BUFFER_SIZE 10000
 
 static I2C_HandleTypeDef *camera_i2c = 0;
 static uint8_t jpeg_buffer[CAMERA_BUFFER_SIZE];
