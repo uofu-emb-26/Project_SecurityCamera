@@ -85,7 +85,7 @@ int main(void)
 
     // RF Chip initialization
     NRF24_PinConfig rx_pins = {
-        .cs_port = GPIOB, .cs_pin = GPIO_PIN_10,
+        .cs_port = GPIOB, .cs_pin = GPIO_PIN_12,
         .ce_port = GPIOB, .ce_pin = GPIO_PIN_11
     };
     nrf24l01p_rx_init(&rx_pins, 2400, _1Mbps); // TODO: change to _2Mbps
@@ -266,8 +266,8 @@ void GPIO_Init(void)
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(TFT_RST_GPIO_Port, &GPIO_InitStruct);
 
-    // RF chip pin initialization (CSN=PB10 and CE=PB11)
-    GPIO_InitStruct.Pin = GPIO_PIN_10 | GPIO_PIN_11;
+    // RF chip pin initialization (CSN=PB12 and CE=PB11)
+    GPIO_InitStruct.Pin = GPIO_PIN_12 | GPIO_PIN_11;
     GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
     GPIO_InitStruct.Pull  = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
