@@ -21,7 +21,7 @@ void camera_init(I2C_HandleTypeDef *hi2c)
     HAL_Delay(100);
 }
 
-uint32_t camera_capture_frame(void)
+int32_t camera_capture_frame(void)
 {
     jpeg_length = 0;
 
@@ -35,7 +35,7 @@ uint32_t camera_capture_frame(void)
         if (HAL_GetTick() - timeout > 3000)
         {
             uart3_write_string("capture timeout\r\n");
-            return 0;
+            return -1;
         }
     }
 
@@ -44,7 +44,15 @@ uint32_t camera_capture_frame(void)
     if (len == 0 || len >= CAMERA_BUFFER_SIZE)
     {
         uart3_write_string("bad fifo len\r\n");
-        return 0;
+    }
+
+    if (len == 0)
+    {
+        return -2;
+    }
+    if (len >= CAMERA_BUFFER_SIZE)
+    {
+        return -4;
     }
 
     CS_LOW();
@@ -68,7 +76,7 @@ uint32_t camera_capture_frame(void)
     if (end_index == 0)
     {
         uart3_write_string("no jpeg end\r\n");
-        return 0;
+        return -3;
     }
 
     jpeg_length = end_index + 1;

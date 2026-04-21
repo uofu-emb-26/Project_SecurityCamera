@@ -19,6 +19,8 @@ extern volatile uint8_t capture_request;
 // Camera/RF transmission
 extern volatile uint8_t rf_tx_ready;
 extern volatile uint8_t rf_tx_error;
+// Whether a frame is actively being transmitted
+extern volatile uint8_t transmitting_frame;
 
 /******************************************************************************/
 /*           Cortex-M0 Processor Interruption and Exception Handlers          */
@@ -141,6 +143,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
     if (htim->Instance == TIM2)
     {
-        capture_request = 1;
+        // Ensure at least 4 seconds pass between capture requests
+        if (!transmitting_frame)
+        {
+          capture_request = 1;
+        }
     }
 }

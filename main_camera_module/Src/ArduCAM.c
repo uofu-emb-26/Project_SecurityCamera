@@ -36,8 +36,8 @@ void ArduCAM_Init(byte model)
 					wrSensorReg8_8(0xff, 0x01);
 					wrSensorReg8_8(0x15, 0x00);
 					// wrSensorRegs8_8(OV2640_640x480_JPEG);
-					// wrSensorRegs8_8(OV2640_320x240_JPEG);
-					wrSensorRegs8_8(OV2640_160x120_JPEG);
+					wrSensorRegs8_8(OV2640_320x240_JPEG);
+					// wrSensorRegs8_8(OV2640_160x120_JPEG);
 			}
 			else
 			{
@@ -53,7 +53,7 @@ void ArduCAM_Init(byte model)
 void ArduCAM_CS_init(void)
 {
 	GPIO_InitTypeDef GPIO_InitStructure = {0};
-    __HAL_RCC_GPIOA_CLK_ENABLE();
+    __HAL_RCC_GPIOB_CLK_ENABLE();
     GPIO_InitStructure.Pin = CS_PIN;
     GPIO_InitStructure.Mode = GPIO_MODE_OUTPUT_PP;
     GPIO_InitStructure.Speed = GPIO_SPEED_FREQ_HIGH;

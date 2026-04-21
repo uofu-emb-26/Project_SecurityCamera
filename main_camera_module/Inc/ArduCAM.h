@@ -142,8 +142,8 @@ struct sensor_reg {
 #endif
 
 //ArduCAM CS define
-#define		CS_PORT		GPIOA
-#define		CS_PIN		GPIO_PIN_4
+#define		CS_PORT		GPIOB
+#define		CS_PIN		GPIO_PIN_11
 
 //ArduCAM LED define
 #define		LED_PORT		GPIOB

@@ -16,13 +16,6 @@ extern "C" {
 #include "camera.h"
 #include <string.h>
 
-// Camera CS
-#define OUT_CS_PORT GPIOA
-#define OUT_CS_PIN  GPIO_PIN_1
-
-#define OUT_CS_LOW()  HAL_GPIO_WritePin(OUT_CS_PORT, OUT_CS_PIN, GPIO_PIN_RESET)
-#define OUT_CS_HIGH() HAL_GPIO_WritePin(OUT_CS_PORT, OUT_CS_PIN, GPIO_PIN_SET)
-
 // Image packets (for RF transmission)
 #define DATA_PER_PACKET (NRF24L01P_PAYLOAD_LENGTH - 4) // 2 bytes (packet_id) + 2 bytes (total_packets)
 typedef struct {
