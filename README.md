@@ -80,13 +80,6 @@ In the figure below, green labels indicate signals that are used by this project
   | 3.3V | VCC | Power |
   | GND | GND | Ground |
 
-  ### RX STM32 ↔ USB-UART Bridge (PC)
-  | STM32 Pin | UART Pin | Description |
-  |-----------|----------|-------------|
-  | PC4 | RX | STM32 → PC (image data out) |
-  | PC5 | TX | PC → STM32 (optional control) |
-  | GND | GND | Ground |
-
 ### Wiring Diagram
 To wire the screen using the STM32F072's SPI1 interface for the screen demonstration at [/screen](/screen/), use the wiring diagram below.
 
