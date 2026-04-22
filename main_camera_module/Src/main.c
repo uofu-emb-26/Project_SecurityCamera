@@ -9,7 +9,6 @@
 //         - 3: External RF interrupts (EXTI-based)
 
 #include "main.h"
-
 #include "test_frame.h"
 
 // Camera
@@ -49,9 +48,9 @@ int main(void)
 
     // Hardware initialization
     GPIO_Init();
-    // EXTI_Init();
-    // DMA_Init();
-    // TIM2_Init();
+    EXTI_Init();
+    DMA_Init();
+    TIM2_Init();
 
     // Communication initialization
     SPI1_Init();
@@ -114,178 +113,37 @@ int main(void)
     nrf24l01p_tx_init(&tx_pins, 2400, _1Mbps); // TODO: change to _2Mbps
 
     // Only act on interrupts for transmission
-    // nrf24l01p_mask_rx_interrupts();
-
-    // uint32_t flash_red = 0;
-    // uint32_t flash_orange = 0;
-    // uint32_t flash_blue = 0;
-    // uint32_t flash_green = 0;
-    // ImagePacket *pkt = (ImagePacket *)nrf_tx_buf.tx_data;
-    // while (1)
-    // {
-    //     // Get a new camera frame
-    //     if (capture_request && !transmitting_frame)
-    //     {
-    //         // Acknowledge the timer-generated request for a new frame
-    //         capture_request = 0;
-
-    //         flash_blue = 1;
-
-    //         // Copy a compressed image out of the camera's memory into the STM's memory
-    //         // int32_t retval = camera_capture_frame();
-    //         int32_t retval = captured_frame_len;
-
-    //         // If an image was captured, start the process of transmitting it into the RF chip's TX FIFO
-    //         if ((retval > 0) && (retval < MAX_JPEG_SIZE))
-    //         {
-    //             jpeg_len = (uint32_t)retval;
-    //             // jpeg_buf = camera_get_buffer();
-    //             jpeg_buf = captured_frame;
-    //             jpeg_index = 0;
-    //             transmitting_frame = 1;
-    //         }
-    //         // Otherwise, flash the red LED
-    //         else
-    //         {
-    //             if (retval == -1)
-    //             {
-    //                 flash_green = 1;
-    //             }
-    //             else if (retval == -2)
-    //             {
-    //                 flash_orange = 1;
-    //             }
-    //             else if (retval == -3)
-    //             {
-    //                 flash_red = 1;
-    //             }
-    //             else if (retval == -4)
-    //             {
-    //                 flash_red = 1;
-    //                 flash_green = 1;
-    //                 flash_orange = 1;
-    //             }
-    //         }
-    //     }
-
-    //     // Transmit 32 bytes of the current camera frame to the RF chip TX FIFO
-    //     if (rf_tx_ready && transmitting_frame)
-    //     {
-    //         if (rf_tx_error)
-    //         {
-    //             rf_tx_error = 0;
-
-    //             // Clear the TX FIFO on the RF chip
-    //             nrf24l01p_flush_tx_fifo();
-
-    //             transmitting_frame = 0;
-    //             flash_orange = 1;
-    //             continue;
-    //         }
-
-    //         uint32_t bytes_remaining = jpeg_len - jpeg_index;
-
-    //         if (bytes_remaining > 0)
-    //         {
-    //             // Send either DATA_PER_PACKET bytes, or however many are left
-    //             uint8_t chunk_size = (bytes_remaining >= DATA_PER_PACKET) ? DATA_PER_PACKET : bytes_remaining;
-
-    //             // Create the packet header
-    //             pkt->packet_id = jpeg_index / DATA_PER_PACKET;
-    //             pkt->total_packets = (jpeg_len + DATA_PER_PACKET - 1) / DATA_PER_PACKET;
-
-    //             // Copy the next JPEG bytes into the data section of the transmission packet
-    //             memcpy(pkt->data, &jpeg_buf[jpeg_index], chunk_size);
-
-    //             // Zero-out the remaining memory for the final packet
-    //             if (chunk_size < DATA_PER_PACKET) 
-    //             {
-    //                 uint8_t padding_bytes = DATA_PER_PACKET - chunk_size;
-    //                 memset(&pkt->data[chunk_size], 0, padding_bytes);
-    //             }
-
-    //             // Start copying this chunk into the RF chip's FIFO
-    //             rf_tx_ready = 0;
-    //             // nrf24l01p_tx_transmit_dma(&hspi1);
-    //             nrf24l01p_tx_transmit(*pkt);
-
-    //             jpeg_index += chunk_size;
-    //         }
-    //         // Every chunk for this JPEG image has been transmitted
-    //         else
-    //         {
-    //             transmitting_frame = 0;
-    //         }
-    //     }
-
-    //     // LED flash logic
-    //     led_flash_handler(&flash_blue, 100, BLUE_PIN);
-    //     led_flash_handler(&flash_red, 100, RED_PIN);
-    //     led_flash_handler(&flash_orange, 100, ORANGE_PIN);
-    //     led_flash_handler(&flash_green, 100, GREEN_PIN);
-    // }
-
-
+    nrf24l01p_mask_rx_interrupts();
 
     uint32_t flash_red = 0;
     uint32_t flash_orange = 0;
     uint32_t flash_blue = 0;
     uint32_t flash_green = 0;
-    uint32_t last_capture_time = 0; 
     ImagePacket *pkt = (ImagePacket *)nrf_tx_buf.tx_data;
     while (1)
     {
-        if (HAL_GetTick() - last_capture_time >= 4000)
+        // Get a new camera frame
+        if (capture_request && !transmitting_frame)
         {
-            last_capture_time = HAL_GetTick();
+            // Acknowledge the timer-generated request for a new frame
+            capture_request = 0;
+
             flash_blue = 1;
 
+            // Copy a compressed image out of the camera's memory into the STM's memory
             // int32_t retval = camera_capture_frame();
             int32_t retval = captured_frame_len;
 
+            // If an image was captured, start the process of transmitting it into the RF chip's TX FIFO
             if ((retval > 0) && (retval < MAX_JPEG_SIZE))
             {
-                uint32_t jpeg_len = (uint32_t)retval;
-                const uint8_t *jpeg_buf = captured_frame;
-                
-                uint32_t total_packets = (jpeg_len + DATA_PER_PACKET - 1) / DATA_PER_PACKET;
-
-                for (uint32_t i = 0; i < total_packets; i++)
-                {
-                    uint32_t jpeg_index = i * DATA_PER_PACKET;
-                    uint32_t bytes_remaining = jpeg_len - jpeg_index;
-                    uint8_t chunk_size = (bytes_remaining >= DATA_PER_PACKET) ? DATA_PER_PACKET : bytes_remaining;
-
-                    pkt->packet_id = i;
-                    pkt->total_packets = total_packets;
-
-                    memcpy(pkt->data, &jpeg_buf[jpeg_index], chunk_size);
-
-                    if (chunk_size < DATA_PER_PACKET) 
-                    {
-                        uint8_t padding_bytes = DATA_PER_PACKET - chunk_size;
-                        memset(&pkt->data[chunk_size], 0, padding_bytes);
-                    }
-
-                    nrf24l01p_tx_transmit((uint8_t *)pkt);
-
-                    while (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_2) == GPIO_PIN_SET)
-                    {
-                        // Block
-                    }
-
-                    uint8_t status = nrf24l01p_get_status();
-
-                    if (status & (1 << 4)) 
-                    {
-                        nrf24l01p_flush_tx_fifo();
-                        // Clear MAX_RT flag
-                        write_register(NRF24L01P_REG_STATUS, (1 << 4));
-                        flash_orange = 1;
-                        break;
-                    }
-                }
+                jpeg_len = (uint32_t)retval;
+                // jpeg_buf = camera_get_buffer();
+                jpeg_buf = captured_frame;
+                jpeg_index = 0;
+                transmitting_frame = 1;
             }
+            // Otherwise, flash the red LED
             else
             {
                 if (retval == -1)
@@ -309,13 +167,61 @@ int main(void)
             }
         }
 
+        // Transmit 32 bytes of the current camera frame to the RF chip TX FIFO
+        if (rf_tx_ready && transmitting_frame)
+        {
+            if (rf_tx_error)
+            {
+                rf_tx_error = 0;
+
+                // Clear the TX FIFO on the RF chip
+                nrf24l01p_flush_tx_fifo();
+
+                transmitting_frame = 0;
+                flash_orange = 1;
+                continue;
+            }
+
+            uint32_t bytes_remaining = jpeg_len - jpeg_index;
+
+            if (bytes_remaining > 0)
+            {
+                // Send either DATA_PER_PACKET bytes, or however many are left
+                uint8_t chunk_size = (bytes_remaining >= DATA_PER_PACKET) ? DATA_PER_PACKET : bytes_remaining;
+
+                // Create the packet header
+                pkt->packet_id = jpeg_index / DATA_PER_PACKET;
+                pkt->total_packets = (jpeg_len + DATA_PER_PACKET - 1) / DATA_PER_PACKET;
+
+                // Copy the next JPEG bytes into the data section of the transmission packet
+                memcpy(pkt->data, &jpeg_buf[jpeg_index], chunk_size);
+
+                // Zero-out the remaining memory for the final packet
+                if (chunk_size < DATA_PER_PACKET) 
+                {
+                    uint8_t padding_bytes = DATA_PER_PACKET - chunk_size;
+                    memset(&pkt->data[chunk_size], 0, padding_bytes);
+                }
+
+                // Start copying this chunk into the RF chip's FIFO
+                rf_tx_ready = 0;
+                nrf24l01p_tx_transmit_dma(&hspi1);
+
+                jpeg_index += chunk_size;
+            }
+            // Every chunk for this JPEG image has been transmitted
+            else
+            {
+                transmitting_frame = 0;
+            }
+        }
+
+        // LED flash logic
         led_flash_handler(&flash_blue, 100, BLUE_PIN);
         led_flash_handler(&flash_red, 100, RED_PIN);
         led_flash_handler(&flash_orange, 100, ORANGE_PIN);
         led_flash_handler(&flash_green, 100, GREEN_PIN);
     }
-
-
 
     // TODO: Set camera capture rate slow enough that base station has time to decompress the JPEG and draw the screen
     //       before the next image begins to be transmitted
