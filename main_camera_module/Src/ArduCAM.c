@@ -20,12 +20,16 @@ uint8_t is_header= false ;
 
 void ArduCAM_Init(byte model) 
 {
+	int id = 0xff;
+	uint8_t data = 0;
+
 	switch (model)
   {
     case OV2640:
     case OV9650:
     case OV9655:
-		{		
+		{
+			rdSensorReg8_8(id, &data);
 		  	wrSensorReg8_8(0xff, 0x01);
 			wrSensorReg8_8(0x12, 0x80);
 			if(m_fmt == JPEG)
@@ -36,8 +40,8 @@ void ArduCAM_Init(byte model)
 					wrSensorReg8_8(0xff, 0x01);
 					wrSensorReg8_8(0x15, 0x00);
 					// wrSensorRegs8_8(OV2640_640x480_JPEG);
-					wrSensorRegs8_8(OV2640_320x240_JPEG);
-					// wrSensorRegs8_8(OV2640_160x120_JPEG);
+					// wrSensorRegs8_8(OV2640_320x240_JPEG);
+					wrSensorRegs8_8(OV2640_160x120_JPEG);
 			}
 			else
 			{

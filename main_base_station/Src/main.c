@@ -110,6 +110,7 @@ int main(void)
                 {
                     total_packets = pkt->total_packets;
                     packets_remaining = pkt->total_packets;
+                    HAL_GPIO_WritePin(GPIOC, GREEN_PIN, GPIO_PIN_SET);
                 }
 
                 // Only process the packet if it's valid (belongs to the current image and has a valid packet ID) and new
@@ -136,6 +137,9 @@ int main(void)
                         // passed image length is greater than the actual image size, the TJpegDec library stops
                         // parsing at the end-of-JPEG marker.
                         uint32_t total_len = total_packets * DATA_PER_PACKET;
+
+                        HAL_GPIO_WritePin(GPIOC, GREEN_PIN, GPIO_PIN_RESET);
+                        HAL_GPIO_WritePin(GPIOC, BLUE_PIN, GPIO_PIN_SET);
                         
                         // Render the JPEG image on screen
                         if (!jpeg_decode_run(image_buffer, total_len))
@@ -143,6 +147,8 @@ int main(void)
                             // Flash the red LED if the JPEG couldn't be decompressed and drawn
                             flash_red = HAL_GetTick() | 1; // Make this isn't 0 so that it triggers (negligible effect for 1000ms flash)
                         }
+
+                        HAL_GPIO_WritePin(GPIOC, BLUE_PIN, GPIO_PIN_RESET);
 
                         // Reset packet status
                         total_packets = 0;
@@ -164,8 +170,8 @@ int main(void)
         }
 
         // LED flash logic
-        led_flash_handler(&flash_red, 1000, RED_PIN);
-        led_flash_handler(&flash_orange, 1000, ORANGE_PIN);
+        // led_flash_handler(&flash_red, 1000, RED_PIN);
+        // led_flash_handler(&flash_orange, 1000, ORANGE_PIN);
     }
 }
 

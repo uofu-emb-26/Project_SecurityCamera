@@ -26,7 +26,6 @@ typedef struct {
 
 #define MAX_JPEG_SIZE 10000 // Max supported JPEG size in bytes
 
-void led_flash_handler(uint32_t *flash_var, uint16_t time_ms, uint16_t pin);
 #define RED_PIN GPIO_PIN_6
 #define ORANGE_PIN GPIO_PIN_8
 #define BLUE_PIN GPIO_PIN_7

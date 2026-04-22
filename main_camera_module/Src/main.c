@@ -37,11 +37,23 @@ const uint8_t *jpeg_buf = NULL;
 // Raised if the RF chip fails to transmit
 volatile uint8_t rf_tx_error = 0;
 
+
+extern volatile uint32_t flash_red;
+extern volatile uint32_t flash_orange;
+extern volatile uint32_t flash_blue;
+extern volatile uint32_t flash_green;
+
 int main(void)
 {
     // Core initialization
     HAL_Init();
     SystemClock_Config();
+
+    // volatile int debugger_connected = 0;
+    // while (debugger_connected == 0)
+    // {
+    //     __asm("nop");
+    // }
 
     // Hardware initialization
     GPIO_Init();
@@ -60,7 +72,13 @@ int main(void)
     HAL_GPIO_WritePin(GPIOC, BLUE_PIN, GPIO_PIN_RESET);
 
     // Camera initialization
-    // camera_init(&hi2c1);
+    camera_init(&hi2c1);
+
+    // Increase the JPEG compression to the max value
+    // Switch to the DSP register bank
+    wrSensorReg8_8(0xFF, 0x00);
+    // Reduce image size
+    wrSensorReg8_8(0x44, 0x3F);
 
 
 
@@ -112,10 +130,6 @@ int main(void)
     // Only act on interrupts for transmission
     nrf24l01p_mask_rx_interrupts();
 
-    uint32_t flash_red = 0;
-    uint32_t flash_orange = 0;
-    uint32_t flash_blue = 0;
-    uint32_t flash_green = 0;
     ImagePacket *pkt = (ImagePacket *)nrf_tx_buf.tx_data;
     while (1)
     {
@@ -125,48 +139,35 @@ int main(void)
             // Acknowledge the timer-generated request for a new frame
             capture_request = 0;
 
-            flash_blue = 1;
+            HAL_GPIO_WritePin(GPIOC, BLUE_PIN, GPIO_PIN_SET);
 
             // Copy a compressed image out of the camera's memory into the STM's memory
-            // int32_t retval = camera_capture_frame();
-            int32_t retval = captured_frame_len;
+            int32_t retval = camera_capture_frame();
+            // int32_t retval = captured_frame_len;
 
             // If an image was captured, start the process of transmitting it into the RF chip's TX FIFO
             if ((retval > 0) && (retval < MAX_JPEG_SIZE))
             {
                 jpeg_len = (uint32_t)retval;
-                // jpeg_buf = camera_get_buffer();
-                jpeg_buf = captured_frame;
+                jpeg_buf = camera_get_buffer();
+                // jpeg_buf = captured_frame;
                 jpeg_index = 0;
                 transmitting_frame = 1;
             }
             // Otherwise, flash the red LED
             else
             {
-                if (retval == -1)
-                {
-                    flash_green = 1;
-                }
-                else if (retval == -2)
-                {
-                    flash_orange = 1;
-                }
-                else if (retval == -3)
-                {
-                    flash_red = 1;
-                }
-                else if (retval == -4)
-                {
-                    flash_red = 1;
-                    flash_green = 1;
-                    flash_orange = 1;
-                }
+                flash_red = 1;
             }
+
+            HAL_GPIO_WritePin(GPIOC, BLUE_PIN, GPIO_PIN_RESET);
         }
 
         // Transmit 32 bytes of the current camera frame to the RF chip TX FIFO
         if (rf_tx_ready && transmitting_frame)
         {
+            HAL_GPIO_WritePin(GPIOC, GREEN_PIN, GPIO_PIN_SET);
+
             if (rf_tx_error)
             {
                 rf_tx_error = 0;
@@ -176,6 +177,7 @@ int main(void)
 
                 transmitting_frame = 0;
                 flash_orange = 1;
+                HAL_GPIO_WritePin(GPIOC, GREEN_PIN, GPIO_PIN_RESET);
                 continue;
             }
 
@@ -210,43 +212,8 @@ int main(void)
             else
             {
                 transmitting_frame = 0;
+                HAL_GPIO_WritePin(GPIOC, GREEN_PIN, GPIO_PIN_RESET);
             }
-        }
-
-        // LED flash logic
-        led_flash_handler(&flash_blue, 100, BLUE_PIN);
-        led_flash_handler(&flash_red, 100, RED_PIN);
-        led_flash_handler(&flash_orange, 100, ORANGE_PIN);
-        led_flash_handler(&flash_green, 100, GREEN_PIN);
-    }
-
-    // TODO: Set camera capture rate slow enough that base station has time to decompress the JPEG and draw the screen
-    //       before the next image begins to be transmitted
-}
-
-void led_flash_handler(uint32_t *flash_var, uint16_t time_ms, uint16_t pin)
-{
-    // Use flash_var as the indicator for whether the LED should flash as well as the amount of time
-    // it should flash for
-    if (*flash_var == 1)
-    {
-        // Make this isn't below 3 for code below (negligible effect for high flash values)
-        *flash_var = HAL_GetTick() | 3;
-    }
-    
-    if (*flash_var > 1)
-    {
-        // Turn the LED on if less than the requested amount of time has passed
-        if ((HAL_GetTick() - *flash_var) < time_ms)
-        {
-            HAL_GPIO_WritePin(GPIOC, pin, GPIO_PIN_SET);
-        }
-        // Otherwise, turn it back off
-        else
-        {
-            HAL_GPIO_WritePin(GPIOC, pin, GPIO_PIN_RESET);
-            // Mark this flash event as handled
-            *flash_var = 0;
         }
     }
 }
