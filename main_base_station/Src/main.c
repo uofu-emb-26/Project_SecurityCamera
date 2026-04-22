@@ -64,8 +64,8 @@ int main(void)
 
     // Hardware initialization
     GPIO_Init();
-    EXTI_Init();
-    DMA_Init();
+    // EXTI_Init();
+    // DMA_Init();
 
     // Communication initialization
     SPI1_Init();
@@ -89,7 +89,7 @@ int main(void)
         .ce_port = GPIOB, .ce_pin = GPIO_PIN_11
     };
     nrf24l01p_rx_init(&rx_pins, 2400, _1Mbps); // TODO: change to _2Mbps
-    nrf24l01p_mask_tx_interrupts();
+    // nrf24l01p_mask_tx_interrupts();
 
     uint16_t total_packets = 0;
     uint16_t packets_remaining = 0;
@@ -99,6 +99,13 @@ int main(void)
     ImagePacket *pkt = (ImagePacket *)nrf_rx_buf.rx_data;
     while (1)
     {
+        if (!!(nrf24l01p_get_status() & (1 << 6)))
+        {
+            nrf24l01p_rx_receive((uint8_t *)pkt);
+
+            nrf_data_received = 1;
+        }
+
         if (nrf_data_received)
         {
             nrf_data_received = 0;
