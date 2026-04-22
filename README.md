@@ -52,9 +52,9 @@ In the figure below, green labels indicate signals that are used by this project
 ![Screen Pinout](/docs/img/screen_pinout.png "Screen Pinout")
 
 - **<ins>RF Communication</ins>**
- - This project uses two STM32 boards for transmitting (TX) and receiving (RX) image data via nRF24L01+ RF modules.
-- Each STM32 board communicates with its nRF24L01+ module over SPI (SCK, MOSI, MISO, CSN, CE, IRQ).
-- The RX STM32 board forwards the received data to a PC via a USB-UART bridge.
+  - This project uses two STM32 boards for transmitting (TX) and receiving (RX) image data via nRF24L01+ RF modules.
+  - Each STM32 board communicates with its nRF24L01+ module over SPI (SCK, MOSI, MISO, CSN, CE, IRQ).
+  - The RX STM32 board forwards the received data to a PC via a USB-UART bridge.
 
   ### TX STM32 ↔ nRF24L01+ (TX)
   | STM32 Pin | nRF24 Pin | Description |
