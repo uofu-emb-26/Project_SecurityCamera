@@ -13,6 +13,12 @@ extern SPI_HandleTypeDef hspi2;
 extern DMA_HandleTypeDef hdma_spi2_rx;
 extern DMA_HandleTypeDef hdma_spi2_tx;
 
+// LED flash handler flags
+volatile uint32_t flash_red = 0;
+volatile uint32_t flash_orange = 0;
+volatile uint32_t flash_blue = 0;
+volatile uint32_t flash_green = 0;
+
 /******************************************************************************/
 /*           Cortex-M0 Processor Interruption and Exception Handlers          */
 /******************************************************************************/
@@ -50,12 +56,45 @@ void PendSV_Handler(void)
 {
 }
 
+void led_flash_handler(volatile uint32_t *flash_var, uint16_t time_ms, uint16_t pin)
+{
+    // Use flash_var as the indicator for whether the LED should flash as well as the amount of time
+    // it should flash for
+    if (*flash_var == 1)
+    {
+        // Make this isn't below 3 for code below (negligible effect for high flash values)
+        *flash_var = HAL_GetTick() | 3;
+    }
+    
+    if (*flash_var > 1)
+    {
+        // Turn the LED on if less than the requested amount of time has passed
+        if ((HAL_GetTick() - *flash_var) < time_ms)
+        {
+            HAL_GPIO_WritePin(GPIOC, pin, GPIO_PIN_SET);
+        }
+        // Otherwise, turn it back off
+        else
+        {
+            HAL_GPIO_WritePin(GPIOC, pin, GPIO_PIN_RESET);
+            // Mark this flash event as handled
+            *flash_var = 0;
+        }
+    }
+}
+
 /**
   * @brief This function handles System tick timer.
   */
 void SysTick_Handler(void)
 {
   HAL_IncTick();
+
+  // LED flash logic
+  led_flash_handler(&flash_blue, 100, BLUE_PIN);
+  led_flash_handler(&flash_red, 100, RED_PIN);
+  led_flash_handler(&flash_orange, 100, ORANGE_PIN);
+  led_flash_handler(&flash_green, 100, GREEN_PIN);
 }
 
 /******************************************************************************/

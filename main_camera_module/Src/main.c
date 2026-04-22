@@ -37,7 +37,7 @@ const uint8_t *jpeg_buf = NULL;
 // Raised if the RF chip fails to transmit
 volatile uint8_t rf_tx_error = 0;
 
-
+// Flags used by flash_handler in SysTick ISR
 extern volatile uint32_t flash_red;
 extern volatile uint32_t flash_orange;
 extern volatile uint32_t flash_blue;
@@ -48,12 +48,6 @@ int main(void)
     // Core initialization
     HAL_Init();
     SystemClock_Config();
-
-    // volatile int debugger_connected = 0;
-    // while (debugger_connected == 0)
-    // {
-    //     __asm("nop");
-    // }
 
     // Hardware initialization
     GPIO_Init();
@@ -67,10 +61,6 @@ int main(void)
     I2C1_Init();
     uart3_Init();
 
-    HAL_GPIO_WritePin(GPIOC, BLUE_PIN, GPIO_PIN_SET);
-    HAL_Delay(1000);
-    HAL_GPIO_WritePin(GPIOC, BLUE_PIN, GPIO_PIN_RESET);
-
     // Camera initialization
     camera_init(&hi2c1);
 
@@ -79,46 +69,6 @@ int main(void)
     wrSensorReg8_8(0xFF, 0x00);
     // Reduce image size
     wrSensorReg8_8(0x44, 0x3F);
-
-
-
-
-
-
-
-    // // Check SPI Communication with ArduChip CPLD
-    // write_reg(0x00, 0x55);
-    // if (read_reg(0x00) != 0x55)
-    // {
-    //     while (1) {
-    //         HAL_GPIO_TogglePin(GPIOC, RED_PIN);
-    //         HAL_Delay(100);
-    //     }
-    // }
-
-    // // Check I2C Communication with OV2640 Sensor
-    // uint8_t vid = 0, pid = 0;
-    // wrSensorReg8_8(0xFF, 0x01); // Switch to sensor bank 1
-    // rdSensorReg8_8(0x0A, &vid); // Read PID
-    // rdSensorReg8_8(0x0B, &pid); // Read VER
-    
-    // if (vid != 0x26 || pid != 0x42)
-    // {
-    //     while (1) {
-    //         HAL_GPIO_TogglePin(GPIOC, ORANGE_PIN);
-    //         HAL_Delay(100);
-    //     }
-    // }
-
-    // HAL_GPIO_WritePin(GPIOC, GREEN_PIN, GPIO_PIN_SET);
-    // HAL_Delay(2000);
-    // HAL_GPIO_WritePin(GPIOC, GREEN_PIN, GPIO_PIN_RESET);
-    // ==========================================================
-
-
-
-
-
 
     // RF Chip initialization
     NRF24_PinConfig tx_pins = {
@@ -139,18 +89,17 @@ int main(void)
             // Acknowledge the timer-generated request for a new frame
             capture_request = 0;
 
+            // Blue LED on for duration of capture
             HAL_GPIO_WritePin(GPIOC, BLUE_PIN, GPIO_PIN_SET);
 
             // Copy a compressed image out of the camera's memory into the STM's memory
             int32_t retval = camera_capture_frame();
-            // int32_t retval = captured_frame_len;
 
             // If an image was captured, start the process of transmitting it into the RF chip's TX FIFO
             if ((retval > 0) && (retval < MAX_JPEG_SIZE))
             {
                 jpeg_len = (uint32_t)retval;
                 jpeg_buf = camera_get_buffer();
-                // jpeg_buf = captured_frame;
                 jpeg_index = 0;
                 transmitting_frame = 1;
             }
@@ -160,12 +109,14 @@ int main(void)
                 flash_red = 1;
             }
 
+            // Blue LED off after capture
             HAL_GPIO_WritePin(GPIOC, BLUE_PIN, GPIO_PIN_RESET);
         }
 
         // Transmit 32 bytes of the current camera frame to the RF chip TX FIFO
         if (rf_tx_ready && transmitting_frame)
         {
+            // Green LED on for duration of image transmission
             HAL_GPIO_WritePin(GPIOC, GREEN_PIN, GPIO_PIN_SET);
 
             if (rf_tx_error)
@@ -211,6 +162,7 @@ int main(void)
             // Every chunk for this JPEG image has been transmitted
             else
             {
+                // Image transfer complete
                 transmitting_frame = 0;
                 HAL_GPIO_WritePin(GPIOC, GREEN_PIN, GPIO_PIN_RESET);
             }

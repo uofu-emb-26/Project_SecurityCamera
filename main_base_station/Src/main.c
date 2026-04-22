@@ -56,6 +56,12 @@ uint32_t packet_received[(MAX_PACKETS + 31) / 32] = {0};
 // and reset for the next image.
 #define MS_UNTIL_RESET 20
 
+// Flags used by flash_handler in SysTick ISR
+extern volatile uint32_t flash_red;
+extern volatile uint32_t flash_orange;
+extern volatile uint32_t flash_blue;
+extern volatile uint32_t flash_green;
+
 int main(void)
 {
     // Core initialization
@@ -94,8 +100,6 @@ int main(void)
     uint16_t total_packets = 0;
     uint16_t packets_remaining = 0;
     uint32_t last_packet_time = 0;
-    uint32_t flash_red = 0;
-    uint32_t flash_orange = 0;
     ImagePacket *pkt = (ImagePacket *)nrf_rx_buf.rx_data;
     while (1)
     {
@@ -110,6 +114,8 @@ int main(void)
                 {
                     total_packets = pkt->total_packets;
                     packets_remaining = pkt->total_packets;
+
+                    // Green LED on for duration of image reception
                     HAL_GPIO_WritePin(GPIOC, GREEN_PIN, GPIO_PIN_SET);
                 }
 
@@ -138,6 +144,7 @@ int main(void)
                         // parsing at the end-of-JPEG marker.
                         uint32_t total_len = total_packets * DATA_PER_PACKET;
 
+                        // Reception finished; Blue LED on for duration of decompression time and drawing of screen
                         HAL_GPIO_WritePin(GPIOC, GREEN_PIN, GPIO_PIN_RESET);
                         HAL_GPIO_WritePin(GPIOC, BLUE_PIN, GPIO_PIN_SET);
                         
@@ -145,7 +152,7 @@ int main(void)
                         if (!jpeg_decode_run(image_buffer, total_len))
                         {
                             // Flash the red LED if the JPEG couldn't be decompressed and drawn
-                            flash_red = HAL_GetTick() | 1; // Make this isn't 0 so that it triggers (negligible effect for 1000ms flash)
+                            flash_red = 1;
                         }
 
                         HAL_GPIO_WritePin(GPIOC, BLUE_PIN, GPIO_PIN_RESET);
@@ -166,34 +173,9 @@ int main(void)
             memset(packet_received, 0, sizeof(packet_received));
 
             // Flash the orange LED
-            flash_orange = HAL_GetTick() | 1;
+            flash_orange = 1;
         }
-
-        // LED flash logic
-        // led_flash_handler(&flash_red, 1000, RED_PIN);
-        // led_flash_handler(&flash_orange, 1000, ORANGE_PIN);
     }
-}
-
-void led_flash_handler(uint32_t *flash_var, uint16_t time_ms, uint16_t pin)
-{
-    // Use flash_var as the indicator for whether the LED should flash as well as the amount of time
-    // it should flash for
-    if (*flash_var)
-        {
-            // Turn the LED on if less than the requested amount of time has passed
-            if ((HAL_GetTick() - *flash_var) < time_ms)
-            {
-                HAL_GPIO_WritePin(GPIOC, pin, GPIO_PIN_SET);
-            }
-            // Otherwise, turn it back off
-            else
-            {
-                HAL_GPIO_WritePin(GPIOC, pin, GPIO_PIN_RESET);
-                // Mark this flash event as handled
-                *flash_var = 0;
-            }
-        }
 }
 
 void SystemClock_Config(void)

@@ -22,6 +22,7 @@ extern volatile uint8_t rf_tx_error;
 // Whether a frame is actively being transmitted
 extern volatile uint8_t transmitting_frame;
 
+// LED flash handler flags
 volatile uint32_t flash_red = 0;
 volatile uint32_t flash_orange = 0;
 volatile uint32_t flash_blue = 0;
