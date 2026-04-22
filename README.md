@@ -54,7 +54,7 @@ In the figure below, green labels indicate signals that are used by this project
 - **<ins>RF Communication</ins>**
   - This project uses two STM32 boards for transmitting (TX) and receiving (RX) image data via nRF24L01+ RF modules.
   - Each STM32 board communicates with its nRF24L01+ module over SPI (SCK, MOSI, MISO, CSN, CE, IRQ).
-  - The code for the RF communication is demonstrated at /RF, and they are divided as /RF/RX and /RF/TX for receiving and transmitting.
+  - The code for the RF communication is demonstrated at [/RF](/RF/), and they are divided as [/RF/RX](/RF/RX) and [/RF/TX](/RF/TX) for receiving and transmitting.
 
   ### TX STM32 ↔ nRF24L01+ (TX)
   | STM32 Pin | nRF24 Pin | Description |
