@@ -88,7 +88,7 @@ int main(void)
         .cs_port = GPIOB, .cs_pin = GPIO_PIN_12,
         .ce_port = GPIOB, .ce_pin = GPIO_PIN_11
     };
-    nrf24l01p_rx_init(&rx_pins, 2400, _1Mbps); // TODO: change to _2Mbps
+    nrf24l01p_rx_init(&rx_pins, 2400, _2Mbps);
     nrf24l01p_mask_tx_interrupts();
 
     uint16_t total_packets = 0;
