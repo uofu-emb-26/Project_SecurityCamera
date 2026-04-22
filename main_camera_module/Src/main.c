@@ -43,9 +43,6 @@ int main(void)
     HAL_Init();
     SystemClock_Config();
 
-    __HAL_RCC_SYSCFG_CLK_ENABLE();
-    __HAL_RCC_PWR_CLK_ENABLE();
-
     // Hardware initialization
     GPIO_Init();
     EXTI_Init();
@@ -107,7 +104,7 @@ int main(void)
 
     // RF Chip initialization
     NRF24_PinConfig tx_pins = {
-        .cs_port = GPIOA, .cs_pin = GPIO_PIN_4,
+        .cs_port = GPIOB, .cs_pin = GPIO_PIN_12,
         .ce_port = GPIOC, .ce_pin = GPIO_PIN_4
     };
     nrf24l01p_tx_init(&tx_pins, 2400, _1Mbps); // TODO: change to _2Mbps
@@ -337,7 +334,7 @@ void SPI1_Init(void)
     hspi1.Init.CLKPhase          = SPI_PHASE_1EDGE;
     hspi1.Init.NSS               = SPI_NSS_SOFT;
     hspi1.Init.NSSPMode          = SPI_NSS_PULSE_DISABLE;
-    hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_128;
+    hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_32;
     hspi1.Init.FirstBit          = SPI_FIRSTBIT_MSB;
     if (HAL_SPI_Init(&hspi1) != HAL_OK) Error_Handler();
 }
@@ -345,68 +342,6 @@ void SPI1_Init(void)
 // Camera
 void SPI2_Init(void)
 {
-    __HAL_RCC_SPI2_CLK_ENABLE();
-    __HAL_RCC_GPIOB_CLK_ENABLE();
-    __HAL_RCC_GPIOC_CLK_ENABLE();
-
-    GPIO_InitTypeDef GPIO_InitStruct = {0};
-
-    // PB14 (MISO)
-    // GPIO_InitStruct.Pin = GPIO_PIN_14;
-    // GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    // GPIO_InitStruct.Pull = GPIO_NOPULL;
-    // GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-    // GPIO_InitStruct.Alternate = GPIO_AF0_SPI2;
-    // HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-    // // PB10 (SCK)
-    // GPIO_InitStruct.Pin = GPIO_PIN_10;
-    // GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    // GPIO_InitStruct.Pull = GPIO_NOPULL;
-    // GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-    // GPIO_InitStruct.Alternate = GPIO_AF5_SPI2;
-    // HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-    // // PC3 (MOSI)
-    // GPIO_InitStruct.Pin = GPIO_PIN_3;
-    // GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    // GPIO_InitStruct.Pull = GPIO_NOPULL;
-    // GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-    // GPIO_InitStruct.Alternate = GPIO_AF1_SPI2;
-    // HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-
-    // GPIO_InitStruct.Pin = GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15;
-    // GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    // GPIO_InitStruct.Pull = GPIO_NOPULL;
-    // GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-    // GPIO_InitStruct.Alternate = GPIO_AF0_SPI2;
-    // HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-    // PB10 (SCK) - Alternate Function 5
-    GPIO_InitStruct.Pin = GPIO_PIN_10;
-    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-    GPIO_InitStruct.Alternate = GPIO_AF5_SPI2;
-    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-    // PC2 (MISO) - Alternate Function 1
-    GPIO_InitStruct.Pin = GPIO_PIN_2;
-    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-    GPIO_InitStruct.Alternate = GPIO_AF1_SPI2;
-    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-
-    // PC3 (MOSI) - Alternate Function 1
-    GPIO_InitStruct.Pin = GPIO_PIN_3;
-    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-    GPIO_InitStruct.Alternate = GPIO_AF1_SPI2;
-    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-
-
     hspi2.Instance = SPI2;
     hspi2.Init.Mode = SPI_MODE_MASTER;
     hspi2.Init.Direction = SPI_DIRECTION_2LINES;
@@ -442,15 +377,15 @@ void GPIO_Init(void)
     // Camera CS Pin starts high
     CS_HIGH();
 
-    // RF chip pin initialization (CSN=PA4)
-    GPIO_InitStruct.Pin = GPIO_PIN_4;
+    // RF chip pin initialization (CSN=PB12)
+    GPIO_InitStruct.Pin = GPIO_PIN_12;
     GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
     GPIO_InitStruct.Pull  = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
     
     // RF CS Pin starts high
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);
 
     // RF chip pin initialization (CE=PC4)
     GPIO_InitStruct.Pin = GPIO_PIN_4;

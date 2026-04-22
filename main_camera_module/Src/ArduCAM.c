@@ -53,7 +53,7 @@ void ArduCAM_Init(byte model)
 void ArduCAM_CS_init(void)
 {
 	GPIO_InitTypeDef GPIO_InitStructure = {0};
-    __HAL_RCC_GPIOB_CLK_ENABLE();
+    __HAL_RCC_GPIOA_CLK_ENABLE();
     GPIO_InitStructure.Pin = CS_PIN;
     GPIO_InitStructure.Mode = GPIO_MODE_OUTPUT_PP;
     GPIO_InitStructure.Speed = GPIO_SPEED_FREQ_HIGH;
