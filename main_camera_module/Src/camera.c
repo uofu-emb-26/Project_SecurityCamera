@@ -21,40 +21,50 @@ void camera_init(I2C_HandleTypeDef *hi2c)
     HAL_Delay(100);
 }
 
-uint32_t camera_capture_frame(void)
+int32_t camera_capture_frame(void)
 {
     jpeg_length = 0;
 
+    // Erase any old images
     flush_fifo();
     clear_fifo_flag();
-    start_capture();
 
+    // Capture a new image
+    start_capture();
     uint32_t timeout = HAL_GetTick();
     while (!(get_bit(ARDUCHIP_TRIG, CAP_DONE_MASK)))
     {
         if (HAL_GetTick() - timeout > 3000)
         {
             uart3_write_string("capture timeout\r\n");
-            return 0;
+            return -1;
         }
     }
 
+    // Get the size of the captured image
     uint32_t len = read_fifo_length();
-
     if (len == 0 || len >= CAMERA_BUFFER_SIZE)
     {
         uart3_write_string("bad fifo len\r\n");
-        return 0;
+    }
+    // Error codes for invalid or too-large images
+    if (len == 0)
+    {
+        return -2;
+    }
+    else if (len >= CAMERA_BUFFER_SIZE)
+    {
+        return -4;
     }
 
+    // Transfer the captured image into the STM32's memory
     CS_LOW();
     set_fifo_burst();
-
     for (uint32_t i = 0; i < len; i++)
         jpeg_buffer[i] = SPI2_ReadWriteByte(0x00);
-
     CS_HIGH();
 
+    // Search for the end-of-JPEG marker (0xFFD9) in the captured image
     uint32_t end_index = 0;
     for (uint32_t i = 1; i < len; i++)
     {
@@ -65,12 +75,13 @@ uint32_t camera_capture_frame(void)
         }
     }
 
+    // Refine the size of the captured image
+    // based on the actual end position
     if (end_index == 0)
     {
         uart3_write_string("no jpeg end\r\n");
-        return 0;
+        return -3;
     }
-
     jpeg_length = end_index + 1;
 
     return jpeg_length;

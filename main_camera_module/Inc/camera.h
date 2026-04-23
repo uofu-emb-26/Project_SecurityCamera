@@ -15,7 +15,7 @@ void camera_init(I2C_HandleTypeDef *hi2c);
 
 // Capture one JPEG frame into the internal buffer
 // Returns number of bytes captured, 0 on error
-uint32_t camera_capture_frame(void);
+int32_t camera_capture_frame(void);
 
 // Get pointer to the raw JPEG bytes after capture
 // Valid until next call to camera_capture_frame()

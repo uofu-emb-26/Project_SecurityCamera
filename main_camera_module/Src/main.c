@@ -1,11 +1,11 @@
 // NOTE: LED meanings
-//         - Red (1 second flash): unable to get image from camera (possibly too big (larger than 10 KB))
-//         - Orange (1 second flash): image transmission error (possibly due to RF interference)
+//         - Red (0.1 second flash): unable to get image from camera (possibly too big (larger than 10 KB))
+//         - Orange (0.1 second flash): image transmission error (possibly due to RF interference)
 
 // NOTE: Interrupt priorities
 //         - 0: SysTick
-//         - 1: RF DMA interrupts
-//         - 2: Camera-capture timer
+//         - 1: Camera-capture timer
+//         - 2: RF DMA interrupts
 //         - 3: External RF interrupts (EXTI-based)
 
 #include "main.h"
@@ -27,14 +27,21 @@ volatile uint8_t capture_request = 0;
 // Whether the RF chip is ready to transmit another frame
 // (Start out ready to transmit first chunk)
 volatile uint8_t rf_tx_ready = 1;
+// Raised if the RF chip fails to transmit
+volatile uint8_t rf_tx_error = 0;
 // Whether a frame is actively being transmitted
-uint8_t transmitting_frame = 0;
+volatile uint8_t transmitting_frame = 0;
+
 // JPEG position information
 uint32_t jpeg_index = 0;
 uint32_t jpeg_len = 0;
 const uint8_t *jpeg_buf = NULL;
-// Raised if the RF chip fails to transmit
-volatile uint8_t rf_tx_error = 0;
+
+// Flags used by flash_handler in SysTick ISR
+extern volatile uint32_t flash_red;
+extern volatile uint32_t flash_orange;
+extern volatile uint32_t flash_blue;
+extern volatile uint32_t flash_green;
 
 int main(void)
 {
@@ -57,18 +64,23 @@ int main(void)
     // Camera initialization
     camera_init(&hi2c1);
 
+    // Increase the JPEG compression to the max value
+    // to reduce size of packet that needs to be transmitted
+    // Switch to the DSP register bank on the camera
+    wrSensorReg8_8(0xFF, 0x00);
+    // Reduce image size (maximum compression)
+    wrSensorReg8_8(0x44, 0x3F);
+
     // RF Chip initialization
     NRF24_PinConfig tx_pins = {
         .cs_port = GPIOB, .cs_pin = GPIO_PIN_12,
         .ce_port = GPIOC, .ce_pin = GPIO_PIN_4
     };
-    nrf24l01p_tx_init(&tx_pins, 2400, _1Mbps); // TODO: change to _2Mbps
+    nrf24l01p_tx_init(&tx_pins, 2400, _2Mbps);
 
     // Only act on interrupts for transmission
     nrf24l01p_mask_rx_interrupts();
 
-    uint32_t flash_red = 0;
-    uint32_t flash_orange = 0;
     ImagePacket *pkt = (ImagePacket *)nrf_tx_buf.tx_data;
     while (1)
     {
@@ -78,12 +90,16 @@ int main(void)
             // Acknowledge the timer-generated request for a new frame
             capture_request = 0;
 
+            // Blue LED on for duration of capture
+            HAL_GPIO_WritePin(GPIOC, BLUE_PIN, GPIO_PIN_SET);
+
             // Copy a compressed image out of the camera's memory into the STM's memory
-            jpeg_len = camera_capture_frame();
+            int32_t retval = camera_capture_frame();
 
             // If an image was captured, start the process of transmitting it into the RF chip's TX FIFO
-            if ((jpeg_len > 0) && (jpeg_len < MAX_JPEG_SIZE))
+            if ((retval > 0) && (retval < MAX_JPEG_SIZE))
             {
+                jpeg_len = (uint32_t)retval;
                 jpeg_buf = camera_get_buffer();
                 jpeg_index = 0;
                 transmitting_frame = 1;
@@ -91,22 +107,27 @@ int main(void)
             // Otherwise, flash the red LED
             else
             {
-                flash_red = HAL_GetTick() | 1; // Make this isn't 0 so that it triggers (negligible effect for 1000ms flash)
+                flash_red = 1;
             }
+
+            // Blue LED off after capture
+            HAL_GPIO_WritePin(GPIOC, BLUE_PIN, GPIO_PIN_RESET);
         }
 
         // Transmit 32 bytes of the current camera frame to the RF chip TX FIFO
         if (rf_tx_ready && transmitting_frame)
         {
+            // Green LED on for duration of image transmission
+            HAL_GPIO_WritePin(GPIOC, GREEN_PIN, GPIO_PIN_SET);
+
             if (rf_tx_error)
             {
                 rf_tx_error = 0;
 
-                // Clear the TX FIFO on the RF chip
-                nrf24l01p_flush_tx_fifo();
-
+                // End the transmission with an error
                 transmitting_frame = 0;
-                flash_orange = HAL_GetTick() | 1;
+                flash_orange = 1;
+                HAL_GPIO_WritePin(GPIOC, GREEN_PIN, GPIO_PIN_RESET);
                 continue;
             }
 
@@ -140,38 +161,12 @@ int main(void)
             // Every chunk for this JPEG image has been transmitted
             else
             {
+                // Image transfer complete
                 transmitting_frame = 0;
+                HAL_GPIO_WritePin(GPIOC, GREEN_PIN, GPIO_PIN_RESET);
             }
         }
-
-        // LED flash logic
-        led_flash_handler(&flash_red, 1000, RED_PIN);
-        led_flash_handler(&flash_orange, 1000, ORANGE_PIN);
     }
-
-    // TODO: Set camera capture rate slow enough that base station has time to decompress the JPEG and draw the screen
-    //       before the next image begins to be transmitted
-}
-
-void led_flash_handler(uint32_t *flash_var, uint16_t time_ms, uint16_t pin)
-{
-    // Use flash_var as the indicator for whether the LED should flash as well as the amount of time
-    // it should flash for
-    if (*flash_var)
-        {
-            // Turn the LED on if less than the requested amount of time has passed
-            if ((HAL_GetTick() - *flash_var) < time_ms)
-            {
-                HAL_GPIO_WritePin(GPIOC, pin, GPIO_PIN_SET);
-            }
-            // Otherwise, turn it back off
-            else
-            {
-                HAL_GPIO_WritePin(GPIOC, pin, GPIO_PIN_RESET);
-                // Mark this flash event as handled
-                *flash_var = 0;
-            }
-        }
 }
 
 void uart3_write_char(char c)
@@ -222,13 +217,13 @@ void TIM2_Init(void){
     htim2.Instance = TIM2;
     htim2.Init.Prescaler = 47999;
     htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-    htim2.Init.Period = 3999;
+    htim2.Init.Period = 5499;
     htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
     htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
 
     HAL_TIM_Base_Init(&htim2);
 
-    HAL_NVIC_SetPriority(TIM2_IRQn, 2, 0);
+    HAL_NVIC_SetPriority(TIM2_IRQn, 1, 0);
     HAL_NVIC_EnableIRQ(TIM2_IRQn);
 
     HAL_TIM_Base_Start_IT(&htim2);
@@ -256,7 +251,8 @@ void SPI1_Init(void)
     hspi1.Init.CLKPolarity       = SPI_POLARITY_LOW;
     hspi1.Init.CLKPhase          = SPI_PHASE_1EDGE;
     hspi1.Init.NSS               = SPI_NSS_SOFT;
-    hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_32;
+    hspi1.Init.NSSPMode          = SPI_NSS_PULSE_DISABLE;
+    hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;
     hspi1.Init.FirstBit          = SPI_FIRSTBIT_MSB;
     if (HAL_SPI_Init(&hspi1) != HAL_OK) Error_Handler();
 }
@@ -271,27 +267,33 @@ void SPI2_Init(void)
     hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
     hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
     hspi2.Init.NSS = SPI_NSS_SOFT;
-    hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_32;
+    hspi2.Init.NSSPMode = SPI_NSS_PULSE_DISABLE;
+    hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;
     hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
+    hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
+    hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+    hspi2.Init.CRCPolynomial = 7;
+    hspi2.Init.CRCLength = SPI_CRC_LENGTH_DATASIZE;
+
     HAL_SPI_Init(&hspi2);
 }
 
 void GPIO_Init(void)
 {
     GPIO_InitTypeDef GPIO_InitStruct = {0};
-    __HAL_RCC_GPIOA_CLK_ENABLE();
+    __HAL_RCC_GPIOA_CLK_ENABLE(); // For CS_PORT for camera
     __HAL_RCC_GPIOB_CLK_ENABLE();
     __HAL_RCC_GPIOC_CLK_ENABLE();
 
     // Camera CS pin initialization
-    GPIO_InitStruct.Pin = OUT_CS_PIN;
+    GPIO_InitStruct.Pin = CS_PIN;
     GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-    HAL_GPIO_Init(OUT_CS_PORT, &GPIO_InitStruct);
+    HAL_GPIO_Init(CS_PORT, &GPIO_InitStruct);
 
     // Camera CS Pin starts high
-    OUT_CS_HIGH();
+    CS_HIGH();
 
     // RF chip pin initialization (CSN=PB12)
     GPIO_InitStruct.Pin = GPIO_PIN_12;
@@ -299,6 +301,9 @@ void GPIO_Init(void)
     GPIO_InitStruct.Pull  = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+    
+    // RF CS Pin starts high
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);
 
     // RF chip pin initialization (CE=PC4)
     GPIO_InitStruct.Pin = GPIO_PIN_4;
@@ -349,7 +354,7 @@ void DMA_Init(void)
   __HAL_RCC_DMA1_CLK_ENABLE();
 
   // RF DMA Interrupt
-  HAL_NVIC_SetPriority(DMA1_Channel2_3_IRQn, 1, 0);
+  HAL_NVIC_SetPriority(DMA1_Channel2_3_IRQn, 2, 0);
   HAL_NVIC_EnableIRQ(DMA1_Channel2_3_IRQn);
 }
 

@@ -1,3 +1,17 @@
+/*
+ * Created by Zachary Ward to extend the nRF24L01+ library with DMA capability
+ * 
+ * Use:
+ *   - Call either nrf24l01p_tx_init() or nrf24l01p_rx_init(), and then call nrf24l01p_mask_tx_interrupts()
+ *     to setup the interrupts for use with this library extension
+ *   - To transmit data, write into nrf_tx_buf.tx_data, then call nrf24l01p_tx_transmit_dma()
+ *   - To receive data, read from nrf_rx_buf when nrf_data_received is 1
+ *   - Data is available in nrf_rx_buf when nrf_data_received is 1 (either a status or 
+ *     a status and payload depending on whether the transmit or the receive function
+ *     was called last).
+ *   - Don't call any read or write functions from the original library when
+ *     nrf_data_buf_lock is 1 (this means a transfer is ongoing in the background)
+ */
 #include "nrf24l01p_ext.h"
 
 // Receive and transmit data buffers for a single nRF24L01+ chip

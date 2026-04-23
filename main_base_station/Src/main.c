@@ -1,6 +1,6 @@
 // NOTE: LED meanings
-//         - Red (1 second flash): unable to decompress JPEG image
-//         - Orange (1 second flash): image reception error (possibly due to RF interference)
+//         - Red (0.1 second flash): unable to decompress JPEG image
+//         - Orange (0.1 second flash): image reception error (possibly due to RF interference)
 
 // NOTE: Interrupt priorities
 //         - 0: SysTick
@@ -8,12 +8,6 @@
 //         - 3: External RF interrupts (EXTI-based)
 
 #include "main.h"
-#include "stm32f0xx_hal.h"
-#include "jpeg_decode.h"
-#include "nrf24l01p.h"
-#include "nrf24l01p_ext.h"
-#include <string.h>
-#include <stdio.h>
 
 // Display
 SPI_HandleTypeDef hspi1;
@@ -23,17 +17,6 @@ DMA_HandleTypeDef hdma_spi1_tx;
 SPI_HandleTypeDef hspi2;
 DMA_HandleTypeDef hdma_spi2_rx;
 DMA_HandleTypeDef hdma_spi2_tx;
-
-// Image packets (for RF transmission)
-#define DATA_PER_PACKET (NRF24L01P_PAYLOAD_LENGTH - 4) // 2 bytes (packet_id) + 2 bytes (total_packets)
-typedef struct {
-    uint16_t packet_id;
-    uint16_t total_packets;
-    uint8_t  data[DATA_PER_PACKET];
-} __attribute__((packed)) ImagePacket;
-
-#define MAX_JPEG_SIZE 10000 // Max supported JPEG size in bytes
-#define MAX_PACKETS ((MAX_JPEG_SIZE + DATA_PER_PACKET - 1) / DATA_PER_PACKET)
 
 // RF packets are loaded into this buffer before running jpeg_decode_run() on it
 // This takes the majority of this STM32's RAM
@@ -49,12 +32,18 @@ uint32_t packet_received[(MAX_PACKETS + 31) / 32] = {0};
 #define BITFIELD32_SET_BIT(bitfield, bit) ((bitfield)[(bit) / 32] |= (1U << ((bit) % 32)))
 #define BITFIELD32_CLEAR_BIT(bitfield, bit) ((bitfield)[(bit) / 32] &= ~(1U << ((bit) % 32)))
 
-// The nRF24L01+ transmits a maximum of ~41 bytes per packet for a 32 byte packet.
+// The nRF24L01+ transmits a maximum of ~41 bytes per packet for a 32 byte payload.
 // At the 2 Mbps transmission rate, this means that ~6098 packets will be transmitted per second,
 // which is ~0.164 ms per packet. If, in the middle of a transaction, a packet hasn't been received
 // for the equivalent of 100 packets (16.4 ms) + some fudge factor, stop trying to receive this image
 // and reset for the next image.
 #define MS_UNTIL_RESET 20
+
+// Flags used by flash_handler in SysTick ISR
+extern volatile uint32_t flash_red;
+extern volatile uint32_t flash_orange;
+extern volatile uint32_t flash_blue;
+extern volatile uint32_t flash_green;
 
 int main(void)
 {
@@ -88,14 +77,12 @@ int main(void)
         .cs_port = GPIOB, .cs_pin = GPIO_PIN_12,
         .ce_port = GPIOB, .ce_pin = GPIO_PIN_11
     };
-    nrf24l01p_rx_init(&rx_pins, 2400, _1Mbps); // TODO: change to _2Mbps
+    nrf24l01p_rx_init(&rx_pins, 2400, _2Mbps);
     nrf24l01p_mask_tx_interrupts();
 
     uint16_t total_packets = 0;
     uint16_t packets_remaining = 0;
     uint32_t last_packet_time = 0;
-    uint32_t flash_red = 0;
-    uint32_t flash_orange = 0;
     ImagePacket *pkt = (ImagePacket *)nrf_rx_buf.rx_data;
     while (1)
     {
@@ -110,6 +97,9 @@ int main(void)
                 {
                     total_packets = pkt->total_packets;
                     packets_remaining = pkt->total_packets;
+
+                    // Turn green LED on for duration of image reception
+                    HAL_GPIO_WritePin(GPIOC, GREEN_PIN, GPIO_PIN_SET);
                 }
 
                 // Only process the packet if it's valid (belongs to the current image and has a valid packet ID) and new
@@ -136,13 +126,20 @@ int main(void)
                         // passed image length is greater than the actual image size, the TJpegDec library stops
                         // parsing at the end-of-JPEG marker.
                         uint32_t total_len = total_packets * DATA_PER_PACKET;
+
+                        // Reception finished; Blue LED on for duration of decompression time and drawing of screen
+                        HAL_GPIO_WritePin(GPIOC, GREEN_PIN, GPIO_PIN_RESET);
+                        HAL_GPIO_WritePin(GPIOC, BLUE_PIN, GPIO_PIN_SET);
                         
                         // Render the JPEG image on screen
                         if (!jpeg_decode_run(image_buffer, total_len))
                         {
                             // Flash the red LED if the JPEG couldn't be decompressed and drawn
-                            flash_red = HAL_GetTick() | 1; // Make this isn't 0 so that it triggers (negligible effect for 1000ms flash)
+                            flash_red = 1;
                         }
+
+                        // Rendering on screen done
+                        HAL_GPIO_WritePin(GPIOC, BLUE_PIN, GPIO_PIN_RESET);
 
                         // Reset packet status
                         total_packets = 0;
@@ -160,34 +157,9 @@ int main(void)
             memset(packet_received, 0, sizeof(packet_received));
 
             // Flash the orange LED
-            flash_orange = HAL_GetTick() | 1;
+            flash_orange = 1;
         }
-
-        // LED flash logic
-        led_flash_handler(&flash_red, 1000, RED_PIN);
-        led_flash_handler(&flash_orange, 1000, ORANGE_PIN);
     }
-}
-
-void led_flash_handler(uint32_t *flash_var, uint16_t time_ms, uint16_t pin)
-{
-    // Use flash_var as the indicator for whether the LED should flash as well as the amount of time
-    // it should flash for
-    if (*flash_var)
-        {
-            // Turn the LED on if less than the requested amount of time has passed
-            if ((HAL_GetTick() - *flash_var) < time_ms)
-            {
-                HAL_GPIO_WritePin(GPIOC, pin, GPIO_PIN_SET);
-            }
-            // Otherwise, turn it back off
-            else
-            {
-                HAL_GPIO_WritePin(GPIOC, pin, GPIO_PIN_RESET);
-                // Mark this flash event as handled
-                *flash_var = 0;
-            }
-        }
 }
 
 void SystemClock_Config(void)
@@ -214,7 +186,7 @@ void SPI1_Init(void)
     hspi1.Init.CLKPolarity       = SPI_POLARITY_LOW;
     hspi1.Init.CLKPhase          = SPI_PHASE_1EDGE;
     hspi1.Init.NSS               = SPI_NSS_SOFT;
-    hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4;
+    hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;
     hspi1.Init.FirstBit          = SPI_FIRSTBIT_MSB;
     hspi1.Init.TIMode            = SPI_TIMODE_DISABLE;
     hspi1.Init.CRCCalculation    = SPI_CRCCALCULATION_DISABLE;
@@ -232,7 +204,7 @@ void SPI2_Init(void)
     hspi2.Init.CLKPolarity       = SPI_POLARITY_LOW;
     hspi2.Init.CLKPhase          = SPI_PHASE_1EDGE;
     hspi2.Init.NSS               = SPI_NSS_SOFT;
-    hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_32;
+    hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4;
     hspi2.Init.FirstBit          = SPI_FIRSTBIT_MSB;
     if (HAL_SPI_Init(&hspi2) != HAL_OK) Error_Handler();
 }

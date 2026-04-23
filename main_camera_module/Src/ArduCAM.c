@@ -25,7 +25,7 @@ void ArduCAM_Init(byte model)
     case OV2640:
     case OV9650:
     case OV9655:
-		{		
+		{
 		  	wrSensorReg8_8(0xff, 0x01);
 			wrSensorReg8_8(0x12, 0x80);
 			if(m_fmt == JPEG)
@@ -35,9 +35,7 @@ void ArduCAM_Init(byte model)
 					wrSensorRegs8_8(OV2640_JPEG);
 					wrSensorReg8_8(0xff, 0x01);
 					wrSensorReg8_8(0x15, 0x00);
-					// wrSensorRegs8_8(OV2640_640x480_JPEG);
-					// wrSensorRegs8_8(OV2640_320x240_JPEG);
-					wrSensorRegs8_8(OV2640_160x120_JPEG);
+					wrSensorRegs8_8(OV2640_320x240_JPEG);
 			}
 			else
 			{
