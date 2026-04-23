@@ -83,6 +83,8 @@ void ili9341_array_endian_swap(uint16_t *buffer16, uint32_t num_pixels)
     for (uint32_t i = 0; i < (num_pixels / 2); i++)
     {
         // Flips A, B, C, D to B, A, D, C (endian-swap on 2-byte values)
+		// This is a hardware instruction, so this performs the endian-swap
+		// as quickly as possible
         buffer32[i] = __REV16(buffer32[i]);
     }
 

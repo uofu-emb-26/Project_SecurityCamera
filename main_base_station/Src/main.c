@@ -1,6 +1,6 @@
 // NOTE: LED meanings
-//         - Red (1 second flash): unable to decompress JPEG image
-//         - Orange (1 second flash): image reception error (possibly due to RF interference)
+//         - Red (0.1 second flash): unable to decompress JPEG image
+//         - Orange (0.1 second flash): image reception error (possibly due to RF interference)
 
 // NOTE: Interrupt priorities
 //         - 0: SysTick
@@ -8,12 +8,6 @@
 //         - 3: External RF interrupts (EXTI-based)
 
 #include "main.h"
-#include "stm32f0xx_hal.h"
-#include "jpeg_decode.h"
-#include "nrf24l01p.h"
-#include "nrf24l01p_ext.h"
-#include <string.h>
-#include <stdio.h>
 
 // Display
 SPI_HandleTypeDef hspi1;
@@ -23,17 +17,6 @@ DMA_HandleTypeDef hdma_spi1_tx;
 SPI_HandleTypeDef hspi2;
 DMA_HandleTypeDef hdma_spi2_rx;
 DMA_HandleTypeDef hdma_spi2_tx;
-
-// Image packets (for RF transmission)
-#define DATA_PER_PACKET (NRF24L01P_PAYLOAD_LENGTH - 4) // 2 bytes (packet_id) + 2 bytes (total_packets)
-typedef struct {
-    uint16_t packet_id;
-    uint16_t total_packets;
-    uint8_t  data[DATA_PER_PACKET];
-} __attribute__((packed)) ImagePacket;
-
-#define MAX_JPEG_SIZE 10000 // Max supported JPEG size in bytes
-#define MAX_PACKETS ((MAX_JPEG_SIZE + DATA_PER_PACKET - 1) / DATA_PER_PACKET)
 
 // RF packets are loaded into this buffer before running jpeg_decode_run() on it
 // This takes the majority of this STM32's RAM
@@ -49,7 +32,7 @@ uint32_t packet_received[(MAX_PACKETS + 31) / 32] = {0};
 #define BITFIELD32_SET_BIT(bitfield, bit) ((bitfield)[(bit) / 32] |= (1U << ((bit) % 32)))
 #define BITFIELD32_CLEAR_BIT(bitfield, bit) ((bitfield)[(bit) / 32] &= ~(1U << ((bit) % 32)))
 
-// The nRF24L01+ transmits a maximum of ~41 bytes per packet for a 32 byte packet.
+// The nRF24L01+ transmits a maximum of ~41 bytes per packet for a 32 byte payload.
 // At the 2 Mbps transmission rate, this means that ~6098 packets will be transmitted per second,
 // which is ~0.164 ms per packet. If, in the middle of a transaction, a packet hasn't been received
 // for the equivalent of 100 packets (16.4 ms) + some fudge factor, stop trying to receive this image
@@ -115,7 +98,7 @@ int main(void)
                     total_packets = pkt->total_packets;
                     packets_remaining = pkt->total_packets;
 
-                    // Green LED on for duration of image reception
+                    // Turn green LED on for duration of image reception
                     HAL_GPIO_WritePin(GPIOC, GREEN_PIN, GPIO_PIN_SET);
                 }
 
@@ -155,6 +138,7 @@ int main(void)
                             flash_red = 1;
                         }
 
+                        // Rendering on screen done
                         HAL_GPIO_WritePin(GPIOC, BLUE_PIN, GPIO_PIN_RESET);
 
                         // Reset packet status
@@ -202,7 +186,7 @@ void SPI1_Init(void)
     hspi1.Init.CLKPolarity       = SPI_POLARITY_LOW;
     hspi1.Init.CLKPhase          = SPI_PHASE_1EDGE;
     hspi1.Init.NSS               = SPI_NSS_SOFT;
-    hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4;
+    hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;
     hspi1.Init.FirstBit          = SPI_FIRSTBIT_MSB;
     hspi1.Init.TIMode            = SPI_TIMODE_DISABLE;
     hspi1.Init.CRCCalculation    = SPI_CRCCALCULATION_DISABLE;
@@ -220,7 +204,7 @@ void SPI2_Init(void)
     hspi2.Init.CLKPolarity       = SPI_POLARITY_LOW;
     hspi2.Init.CLKPhase          = SPI_PHASE_1EDGE;
     hspi2.Init.NSS               = SPI_NSS_SOFT;
-    hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_32;
+    hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4;
     hspi2.Init.FirstBit          = SPI_FIRSTBIT_MSB;
     if (HAL_SPI_Init(&hspi2) != HAL_OK) Error_Handler();
 }

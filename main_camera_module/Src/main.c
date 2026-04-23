@@ -1,6 +1,6 @@
 // NOTE: LED meanings
-//         - Red (1 second flash): unable to get image from camera (possibly too big (larger than 10 KB))
-//         - Orange (1 second flash): image transmission error (possibly due to RF interference)
+//         - Red (0.1 second flash): unable to get image from camera (possibly too big (larger than 10 KB))
+//         - Orange (0.1 second flash): image transmission error (possibly due to RF interference)
 
 // NOTE: Interrupt priorities
 //         - 0: SysTick
@@ -9,7 +9,6 @@
 //         - 3: External RF interrupts (EXTI-based)
 
 #include "main.h"
-#include "test_frame.h"
 
 // Camera
 SPI_HandleTypeDef hspi2;
@@ -28,14 +27,15 @@ volatile uint8_t capture_request = 0;
 // Whether the RF chip is ready to transmit another frame
 // (Start out ready to transmit first chunk)
 volatile uint8_t rf_tx_ready = 1;
+// Raised if the RF chip fails to transmit
+volatile uint8_t rf_tx_error = 0;
 // Whether a frame is actively being transmitted
 volatile uint8_t transmitting_frame = 0;
+
 // JPEG position information
 uint32_t jpeg_index = 0;
 uint32_t jpeg_len = 0;
 const uint8_t *jpeg_buf = NULL;
-// Raised if the RF chip fails to transmit
-volatile uint8_t rf_tx_error = 0;
 
 // Flags used by flash_handler in SysTick ISR
 extern volatile uint32_t flash_red;
@@ -65,9 +65,10 @@ int main(void)
     camera_init(&hi2c1);
 
     // Increase the JPEG compression to the max value
-    // Switch to the DSP register bank
+    // to reduce size of packet that needs to be transmitted
+    // Switch to the DSP register bank on the camera
     wrSensorReg8_8(0xFF, 0x00);
-    // Reduce image size
+    // Reduce image size (maximum compression)
     wrSensorReg8_8(0x44, 0x3F);
 
     // RF Chip initialization
@@ -123,9 +124,7 @@ int main(void)
             {
                 rf_tx_error = 0;
 
-                // Clear the TX FIFO on the RF chip
-                nrf24l01p_flush_tx_fifo();
-
+                // End the transmission with an error
                 transmitting_frame = 0;
                 flash_orange = 1;
                 HAL_GPIO_WritePin(GPIOC, GREEN_PIN, GPIO_PIN_RESET);
@@ -218,7 +217,7 @@ void TIM2_Init(void){
     htim2.Instance = TIM2;
     htim2.Init.Prescaler = 47999;
     htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-    htim2.Init.Period = 3999;
+    htim2.Init.Period = 5499;
     htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
     htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
 
@@ -253,7 +252,7 @@ void SPI1_Init(void)
     hspi1.Init.CLKPhase          = SPI_PHASE_1EDGE;
     hspi1.Init.NSS               = SPI_NSS_SOFT;
     hspi1.Init.NSSPMode          = SPI_NSS_PULSE_DISABLE;
-    hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_32;
+    hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;
     hspi1.Init.FirstBit          = SPI_FIRSTBIT_MSB;
     if (HAL_SPI_Init(&hspi1) != HAL_OK) Error_Handler();
 }
@@ -269,7 +268,7 @@ void SPI2_Init(void)
     hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
     hspi2.Init.NSS = SPI_NSS_SOFT;
     hspi2.Init.NSSPMode = SPI_NSS_PULSE_DISABLE;
-    hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_32;
+    hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;
     hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
     hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
     hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;

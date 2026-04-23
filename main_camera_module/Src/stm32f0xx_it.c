@@ -19,7 +19,6 @@ extern volatile uint8_t capture_request;
 // Camera/RF transmission
 extern volatile uint8_t rf_tx_ready;
 extern volatile uint8_t rf_tx_error;
-// Whether a frame is actively being transmitted
 extern volatile uint8_t transmitting_frame;
 
 // LED flash handler flags
@@ -71,7 +70,7 @@ void led_flash_handler(volatile uint32_t *flash_var, uint16_t time_ms, uint16_t 
     // it should flash for
     if (*flash_var == 1)
     {
-        // Make this isn't below 3 for code below (negligible effect for high flash values)
+        // Make sure this isn't below 3 for code below (negligible effect for high flash values)
         *flash_var = HAL_GetTick() | 3;
     }
     
@@ -163,6 +162,9 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     // If MAX_RT flag set
     if (status & (1 << 4))
     {
+      // Clear the TX FIFO on the RF chip
+      nrf24l01p_flush_tx_fifo();
+
       // Clear the status flag (by writing a 1)
       new_status |= (1 << 4);
 
@@ -183,6 +185,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     if (htim->Instance == TIM2)
     {
         // Ensure at least 4 seconds pass between capture requests
+        // (don't request a new frame if the last one hasn't finished yet)
         if (!transmitting_frame)
         {
           capture_request = 1;

@@ -139,8 +139,8 @@ void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi) {
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
   if (GPIO_Pin == RF_INT_PIN) {
-    // The only interrupt that the RF chip can trigger is RX_DR (since nrf24l01p_mask_tx_interrupts())
-    // was called during initialization. Therefore, at this point, it's known that the nRF24L01+'s RX FIFO
+    // The only interrupt that the RF chip can trigger is RX_DR (since nrf24l01p_mask_tx_interrupts()
+    // was called during initialization). Therefore, at this point, it's known that the nRF24L01+'s RX FIFO
     // has valid data, so clear the interrupt flag, then start a DMA transfer to read the data.
 
     // Get the current status of the nRF24L01+
