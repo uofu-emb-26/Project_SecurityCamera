@@ -24,12 +24,12 @@ This is the wireless security camera. It consists of two microcontroller modules
 ## Hardware
 The following hardware is used to implement this project.
 
-|    **Component**    |                  **Part**                 | **Quantity** |  **Price** |                      **Link**                      |
-|:-------------------:|:-----------------------------------------:|:------------:|:----------:|:--------------------------------------------------:|
-| **Microcontroller** |      STM32F072 Discovery Kit (UM1690)     |       2      |  $11.13 ea | https://estore.st.com/en/stm32f072b-disco-cpn.html |
-|      **Camera**     |       Arducam Mini 2MP Plus (OV2640)      |       1      |  $25.99 ea |               https://a.co/d/06XITQKc              |
-|      **Screen**     | Adafruit 2.8" 320x240 SPI ILI9341 Display |       1      |  $24.95 ea |        https://www.adafruit.com/product/1651       |
-|     **RF Chip**     |                 nRF24L01+                 |       2      | $7.89 4-pk |               https://a.co/d/04dAOcaQ              |
+|    **Component**    |                  **Part**                 | **Quantity** |  **Price** |                      **Link**                      |  **Datasheets**  |
+|:-------------------:|:-----------------------------------------:|:------------:|:----------:|:--------------------------------------------------:|:------------------:|
+| **Microcontroller** |      STM32F072 Discovery Kit (UM1690)     |       2      |  $11.13 ea | https://estore.st.com/en/stm32f072b-disco-cpn.html | [Discovery Board](/docs/datasheets/stm32_discovery.pdf), [Processor](/docs/datasheets/stm32f072.pdf), [Core](/docs/datasheets/stm32_arm_core.pdf), [Peripherals](/docs/datasheets/stm32_peripherals.pdf) |
+|      **Camera**     |       Arducam Mini 2MP Plus (OV2640)      |       1      |  $25.99 ea |               https://a.co/d/06XITQKc              | [ArduCAM](/docs/datasheets/arducam_overview.pdf), [RAM](/docs/datasheets/arducam_spi.pdf), [OV2640 Sensor](/docs/datasheets/arducam_ov2640_sensor.pdf) |
+|      **Screen**     | Adafruit 2.8" 320x240 SPI ILI9341 Display |       1      |  $24.95 ea |        https://www.adafruit.com/product/1651       | [ILI9341 Chipset](/docs/datasheets/screen_ili9341_chipset.pdf), [Touchscreen](/docs/datasheets/screen_tsc2007.pdf), [Level Shifter](/docs/datasheets/screen_level_shifter.pdf), [Voltage Regulator](/docs/datasheets/screen_voltage_regulator.pdf) |
+|     **RF Chip**     |                 nRF24L01+                 |       2      | $7.89 4-pk |               https://a.co/d/04dAOcaQ              | [nRF24L01+](/docs/datasheets/nrf24l01p.pdf) |
 
 ### Wiring
 The wireless security camera is wired according to the diagram and tables below.
