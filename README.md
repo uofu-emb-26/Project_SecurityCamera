@@ -105,7 +105,20 @@ The screen and RF modules both communicate over SPI. The camera has two interfac
 
 ## Software
 ### Data Flow
-// TODO: insert and describe data flow diagram
+![System Data Flow](/docs/img/system_data_flow.png "System Data Flow")
+
+The camera module uses a timer to read images from the ArduCAM at a consistent framerate over SPI2 into a 10KB image buffer. The RF chip supports a maximum packet size of 32 bytes, of which 4 bytes are used by the image transfer protocol to designate the total number of packets in a transaction and the current packet ID within that transaction, so the remaining 28 bytes are filled with successive chunks of the image buffer. Each constructed packet is transferred into the RF chip's TX FIFO over SPI1 using DMA to ensure the STM32's core remains available to continue interfacing with the ArduCAM.
+
+The RF chip transmits the data packet combined with a synchronization preamble that alerts receiving RF chips of incoming data, the address of the RX chip that should receive the data, data control flags, and a CRC that allows the RX chip to verify it received the data correctly. The RX chip sends an acknowledgement when it receives data and the data's CRC is correct, so packets that are lost or corrupted in transmission aren't acknowledged and can be automatically retransmitted by the TX chip. After the RX chip validates the received data, it interrupts the base station's microcontroller, which triggers a DMA read of the packet out of the RX chip's receive FIFO over SPI2. The data received can then be unpacked and read into the correct position in the base station's image buffer using the packet ID from the image transfer protocol header.
+
+A 320x240 pixel image with 16 bits of color resolution - the RGB565 format used by the screen - would require more than 1 MB of RAM, but the STM32F072 only has 16 KB. To remedy this, the OV2640 sensor in the ArduCAM was configured to compress the images it captures into JPEG files that fit into the microcontrollers' 10 KB image buffers. The TJpegDec library, which is optimized for JPEG decompression on low-resource microcontrollers, is then used to decompress the image one region at a time and write the result to the screen over SPI1.
+
+To fit both the image buffer and the workspace for the TJpegDec library into the base station's 16 KB of RAM, the linker script was modified to remove heap memory, and the base station's data structures were modified to use bitmasking to pack flags into single bits.
+
+The STM32F072 is little-endian, and the camera and RF chips both transfer data as little-endian. However, the screen is big-endian. For images to be displayed correctly, each image region decompressed by the TJpegDec library must undergo an endian swap prior to transmission to the screen. This process is accelerated with the ARM architecture's `REV16` instruction, which can perform this swap on four bytes in one clock cycle.
+
+JPEG decompression is computationally expensive - decompressing a single 320x240 image takes approximately 5 seconds on the STM32F072 with its core clock configured to the maximum 48 MHz rate. Without a more powerful microcontroller, this means the refresh rate of the security camera's video feed is limited to ~0.2 Hz.
+
 
 ### Repository Structure
 // TODO: describe folders in this repository
