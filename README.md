@@ -32,7 +32,33 @@ The following hardware is used to implement this project.
 |     **RF Chip**     |                 nRF24L01+                 |       2      | $7.89 4-pk |               https://a.co/d/04dAOcaQ              |
 
 ### Wiring
-// TODO: add wiring diagram
+The wireless security camera is wired according to the diagram and tables below.
+
+![System Wiring](/docs/img/system_connections.png "System Wiring")
+
+#### Camera
+
+| Camera Pin | CS | MOSI | MISO | SCK | GND | VCC | SDA | SCL |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| STM32 Pin | PA4 | PC3 | PB14 | PB10 | GND | 5V | PB7 | PB6 |
+
+#### TX RF Chip
+
+| NRF24L01 Pin | GND | CE | SCK | MISO | VCC | CS | MOSI | IRQ |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| STM32 Pin | GND | PC4 | PB3 | PB4 | 3V | PB12 | PB5 | PB2 |
+
+#### RX RF Chip
+
+| NRF24L01 Pin | IRQ | MOSI | CS | VCC | MISO | SCK | CE | GND |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| STM32 Pin | PB2 | PC3 | PB12 | 3V | PB14 | PB10 | PB11 | GND |
+
+#### Screen
+
+| TFT LCD Pin | GND | CS | DC | 3V3 | RST | 5V | SCK | MOSI |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| STM32 Pin | GND | PA9 | PA10 | 3V | PA8 | 5V | PB3 | PB5 |
 
 ### STM32F072 Discovery SPI/I2C Ports
 The screen and RF modules both communicate over SPI. The camera has two interfaces: SPI for image data, and I2C for control. Each STM32F072 has two SPI interfaces and two I2C interfaces that each can use one of two GPIO pins for their I/O. These options, and what they conflict with on the Discovery board, are included below.
