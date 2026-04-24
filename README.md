@@ -1,14 +1,25 @@
-# Security Camera Project
-## Group Members
-- Zachary Ward
-- Zoey Lee
-- Charles Jones
-- Sangeun An
+# Wireless Security Camera
+#### Zachary Ward, Zoey Lee, Charles Jones, Sangeun An
+
+## Table of Contents
+- [Overview](#overview)
+- [Hardware](#hardware)
+  - [Wiring](#wiring)
+  - [Available SPI & I2C Ports](#stm32f072-discovery-spii2c-ports)
+- [Software](#software)
+  - [Data Flow](#data-flow)
+  - [Repository Structure](#repository-structure)
+- Major Components
+  - [Camera](#camera)
+  - [RF Communication](#rf-communication)
+  - [JPEG Decompression](#jpeg-decompression)
+  - [Screen](#screen)
+- [Project Milestones](#milestones)
 
 ## Overview
-This project implements an embedded security camera system. The system reads video data off of a camera, transmits that data to another microcontroller, and then displays that data on a screen. The project consists of two  separate modules: the camera module and the base station, which manages the screen. The modules communicate wirelessly using an RF chip and a custom communication protocol. To meet the resource constraints of the STM32F072 microcontrollers, the JPEG compression mode of the camera is utilized along with a microcontroller-optimized JPEG decompression and processing library. This requires two STM32F072 microcontrollers, two RF chips, one camera, and one screen. An overview of these hardware modules is provided below.
+This is the wireless security camera. It consists of two microcontroller modules: the camera and the base station. The camera captures and wirelessly transmits a video feed to the base station, which receives and displays the image feed on an integrated display. Both modules use the STM32F072 Discovery board and the nRF24L01+ RF chip. The camera module uses the ArduCAM OV2640 camera, and the base station uses a 2.8" Adafruit TFT screen with the ILI9341 chipset and a resolution of 320x240. The STM32F072 has very limited RAM, so JPEG compression is used to meet these constraints. The camera system is shown below.
 
-![System Overview](/docs/img/system_overview.png "System Overview")
+// TODO: add final system picture
 
 ## Hardware
 The following hardware is used to implement this project.
@@ -19,6 +30,94 @@ The following hardware is used to implement this project.
 |      **Camera**     |       Arducam Mini 2MP Plus (OV2640)      |       1      |  $25.99 ea |               https://a.co/d/06XITQKc              |
 |      **Screen**     | Adafruit 2.8" 320x240 SPI ILI9341 Display |       1      |  $24.95 ea |        https://www.adafruit.com/product/1651       |
 |     **RF Chip**     |                 nRF24L01+                 |       2      | $7.89 4-pk |               https://a.co/d/04dAOcaQ              |
+
+### Wiring
+// TODO: add wiring diagram
+
+### STM32F072 Discovery SPI/I2C Ports
+The screen and RF modules both communicate over SPI. The camera has two interfaces: SPI for image data, and I2C for control. Each STM32F072 has two SPI interfaces and two I2C interfaces that each can use one of two GPIO pins for their I/O. These options, and what they conflict with on the Discovery board, are included below.
+
+#### SPI1
+
+| Signal | Pin | AF | Discovery Board Conflicts | Notes |
+| --- | --- | --- | --- | --- |
+| MISO | PB4 | AF0 | - |  |
+| MISO | PA6 | AF0 | TS_G2_IO3 | **DON'T USE** without soldering SB27-32 and removing R38-40 and C26-28 |
+| MOSI | PB5 | AF0 | - | |
+| MOSI | PA7 | AF0 | TS_G2_IO4 | **DON'T USE** without soldering SB27-32 and removing R38-40 and C26-28 |
+| SCLK | PB3 | AF0 | - | |
+| SCLK | PA5 | AF0 | - | |
+
+#### SPI2
+
+| Signal | Pin | AF | Discovery Board Conflicts | Notes |
+| --- | --- | --- | --- | --- |
+| MISO | PB14 | AF0 | Gyro SDO | **AS LONG AS PC0 (Gyro CS) is driven high**, this can be used. This switches SDO to SA0 (Gyro address bit 0), meaning this pin on the Gyro is in input mode and therefore tri-stated. |
+| MISO | PC2 | AF1 | Gyro Int2 | Interrupt pin driven by Gyro. **DON'T USE** (to prevent driving opposing states on the MISO line and frying something). |
+| MOSI | PC3 | AF1 | - | |
+| MOSI | PB15 | AF0 | Gyro SDA | **This pin should probably be avoided**. If PC0 is driven high, I2C mode is enabled on the Gyro, so this pin functions as SDA (if bits corresponding to the Gyro's address are transmitted over MOSI, the Gyro may drive the line and fry something). If PC0 is driven low, this pin functions as SDI by default (input), but this means PB14 can't be used as MISO. |
+| SCLK | PB13 | AF0 | Gyro SCL | On the Gyro, this pin is only an input (either for SCL (I2C clock) or SPC (SPI clock)). **It is a good option to use for SCLK.** |
+| SCLK | PB10 | AF5 | EXT/RF-E2P SCL | This only connects to a header, so it's **fine to use as the clock**. However, this has a long trace that passes all of the board's left-side pins, so it may not be great for high-speed data. |
+
+#### I2C1
+
+| Signal | Pin | AF | Discovery Board Conflict | Notes |
+| --- | --- | --- | --- | --- |
+| SCL | PB6 | AF1 | - | |
+| SCL | PB8 | AF1 | - | |
+| SDA | PB7 | AF1 | - | |
+| SDA | PB9 | AF1 | - | |
+
+#### I2C2
+
+| Signal | Pin | AF | Discovery Board Conflicts | Notes |
+| --- | --- | --- | --- | --- |
+| SCL | PB10 | AF1 | EXT/RF-E2P SCL | Connects to a header, but otherwise isn't used |
+| SCL | PB13 | AF5 | Gyro SCL | Probably used by SPI2_SCLK |
+| SDA | PB11 | AF1 | EXT/RF-E2P SDA | Connects to a header, but otherwise isn't used |
+| SDA | PB14 | AF5 | Gyro SDO | Used by SPI2_MISO |
+
+## Software
+### Data Flow
+// TODO: insert and describe data flow diagram
+
+### Repository Structure
+// TODO: describe folders in this repository
+
+## Camera
+// TODO
+
+## RF Communication
+  - This project uses two STM32 boards for transmitting (TX) and receiving (RX) image data via nRF24L01+ RF modules.
+  - Each STM32 board communicates with its nRF24L01+ module over SPI (SCK, MOSI, MISO, CSN, CE, IRQ).
+  - The code for the RF communication is demonstrated at [/RF](/RF/), and they are divided as [/RF/RX](/RF/RX) and [/RF/TX](/RF/TX) for receiving and transmitting.
+
+  ### TX STM32 ↔ nRF24L01+ (TX)
+  | STM32 Pin | nRF24 Pin | Description |
+  |-----------|-----------|-------------|
+  | PB13 | SCK | SPI clock |
+  | PB14 | MISO | SPI data: nRF24 → STM32 |
+  | PC3 | MOSI | SPI data: STM32 → nRF24 |
+  | PB12 | CSN | Chip select (active low) |
+  | PB1 | CE | TX/RX mode control |
+  | PA0 | IRQ | Interrupt: tx done / error |
+  | 3.3V | VCC | Power |
+  | GND | GND | Ground |
+
+  ### RX STM32 ↔ nRF24L01+ (RX)
+  | STM32 Pin | nRF24 Pin | Description |
+  |-----------|-----------|-------------|
+  | PB13 | SCK | SPI clock |
+  | PB14 | MISO | SPI data: nRF24 → STM32 |
+  | PC3 | MOSI | SPI data: STM32 → nRF24 |
+  | PB10 | CSN | Chip select (active low) |
+  | PB11 | CE | TX/RX mode control |
+  | PA0 | IRQ | Interrupt: data received |
+  | 3.3V | VCC | Power |
+  | GND | GND | Ground |
+
+## JPEG Decompression
+// TODO
 
 ## Screen
 The screen purchased contains three devices in one: the screen itself that uses the ILI9341 driver chip, a touchscreen that uses the TSC2007 controller, and an SD card interface. The touchscreen and SD card are currently unused in this project.
@@ -51,35 +150,6 @@ In the figure below, green labels indicate signals that are used by this project
 
 ![Screen Pinout](/docs/img/screen_pinout.png "Screen Pinout")
 
-- **<ins>RF Communication</ins>**
-  - This project uses two STM32 boards for transmitting (TX) and receiving (RX) image data via nRF24L01+ RF modules.
-  - Each STM32 board communicates with its nRF24L01+ module over SPI (SCK, MOSI, MISO, CSN, CE, IRQ).
-  - The code for the RF communication is demonstrated at [/RF](/RF/), and they are divided as [/RF/RX](/RF/RX) and [/RF/TX](/RF/TX) for receiving and transmitting.
-
-  ### TX STM32 ↔ nRF24L01+ (TX)
-  | STM32 Pin | nRF24 Pin | Description |
-  |-----------|-----------|-------------|
-  | PB13 | SCK | SPI clock |
-  | PB14 | MISO | SPI data: nRF24 → STM32 |
-  | PC3 | MOSI | SPI data: STM32 → nRF24 |
-  | PB12 | CSN | Chip select (active low) |
-  | PB1 | CE | TX/RX mode control |
-  | PA0 | IRQ | Interrupt: tx done / error |
-  | 3.3V | VCC | Power |
-  | GND | GND | Ground |
-
-  ### RX STM32 ↔ nRF24L01+ (RX)
-  | STM32 Pin | nRF24 Pin | Description |
-  |-----------|-----------|-------------|
-  | PB13 | SCK | SPI clock |
-  | PB14 | MISO | SPI data: nRF24 → STM32 |
-  | PC3 | MOSI | SPI data: STM32 → nRF24 |
-  | PB10 | CSN | Chip select (active low) |
-  | PB11 | CE | TX/RX mode control |
-  | PA0 | IRQ | Interrupt: data received |
-  | 3.3V | VCC | Power |
-  | GND | GND | Ground |
-
 ### Wiring Diagram
 To wire the screen using the STM32F072's SPI1 interface for the screen demonstration at [/screen](/screen/), use the wiring diagram below.
 
@@ -103,9 +173,6 @@ The correct PCB schematic for this screen can only be downloaded from the [offic
 
 #### STEMMA QT Connector
 ![Screen STEMMA QT Schematic](/docs/img/screen_schematic_stemmaqt.png "Screen STEMMA QT Schematic")
-
-# Microcontroller Ports
-The screen and RF modules both communicate over SPI. The camera has two interfaces: SPI for image data, and I2C for control. Each STM32F072 has two SPI interfaces and two I2C interfaces that each can use one of two GPIO pins for their I/O. Notes about each of these options, and what they conflict with on the Discovery board, are included at [/docs/spi_i2c_pins.txt](/docs/spi_i2c_pins.txt).
 
 ## Milestones
 - **Milestone 1 (3/27) Camera Initialization and Data Capture:**
