@@ -121,7 +121,29 @@ JPEG decompression is computationally expensive - decompressing a single 320x240
 
 
 ### Repository Structure
-// TODO: describe folders in this repository
+As this project was implemented, new directories were created as features were added. This allowed each feature to stand alone as its own project so that it could easily be rebuilt, flashed, and tested or demonstrated if needed. To this end, the directories in this repository are explained below.
+
+#### Final Project Code
+- [main_camera_module](/main_camera_module/): The final code for the Camera Module.
+  - Initialize Project: `mkdir build/ && cmake -B build/ -S .` (run from the same directory as this README)
+  - Build: `cmake --build build --target main_camera_module`
+  - Flash: `cmake --build build --target flash_main_camera_module`
+- [main_base_station](/main_base_station/): The final code for the Base Station.
+  - Initialize Project: already complete (as part of main_camera_module)
+  - Build: `cmake --build build --target main_base_station`
+  - Flash: `cmake --build build --target flash_main_base_station`
+
+#### Project History
+- [RF](/RF): Code for interacting with the RF chips and transmitting data between a TX and an RX chip.
+- [camera](/camera): Code for interacting with the ArduCAM camera and capturing images.
+- [camera_screen](/camera_screen): Code for rendering camera images on the screen on a single microcontroller (no RF chips). Builds on the work in `display` and `camera`.
+- [display](/display): Code for decompressing a JPEG image and rendering it on the screen (no RF chips, no camera). Builds on the work in `screen`.
+- [screen](/screen): Code for interacting with the screen and rendering raw RGB565 images on it (no RF chips, no camera, no JPEG compression).
+
+#### Supporting Directories
+- [CubeMx_Projects](/CubeMx_Projects): CUBEMX project files for configuring GPIOs and peripherals on the STM32F072.
+- [Drivers](/Drivers): Helper files for the STM32F072.
+- [docs](/docs): Resources used by this README (images, datasheets, etc.).
 
 ## Camera
 // TODO
