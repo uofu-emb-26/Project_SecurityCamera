@@ -146,7 +146,15 @@ As this project was implemented, new directories were created as features were a
 - [docs](/docs): Resources used by this README (images, datasheets, etc.).
 
 ## Camera
-// TODO
+- The camera module uses the ArduCAM, which combines an OV2640 image sensor with and on-board FIFO buffer and SPI/I2C interface. The STm32 communicates 
+  with it over two busses simultaneously: I2C (SCCB) for ssensor configuration and SPI2 for image date transfer.
+- Camera initialization happens in teh following order: the SCCB/I2C bus is initialized, the sensor I2C address is set to 0x60, the SPI chip select pin is
+  configured, and then ArduCAM_Init is called to configure the OV2640 sensor.
+- Frame capture follows this sequence: The ArduCAMs FIFO is flushed, a capture is triggered by writing to ARDUCHIP_FIFO, the STM polls the CAP_DONE_MASK bit 
+  until capture completes, The FIFO lenght is read from three size registersand validated, the image is read out of the ArduCam's FIFO, the buffer is scanned for the JPEG
+  end of file marker (0xFF 0xD9) to determine the true length.
+- The frame capture is driven by TIM2 which produces an event about every 5.5 seconds. The timer ISR sets a capture_request flag which is checked in the main loop. The
+  main loop only initiates a new capture when the capture request flag is set.
 
 ## RF Communication
   - This project uses two STM32 boards for transmitting (TX) and receiving (RX) image data via nRF24L01+ RF modules.
