@@ -178,7 +178,27 @@ As this project was implemented, new directories were created as features were a
   | GND | GND | Ground |
 
 ## JPEG Decompression
-// TODO
+The base station uses the TJpegDec library to decompress incoming JPEG image data and render it to the screen.
+
+**Why JPEG?**
+A raw 320×240 RGB565 image requires ~150 KB of RAM. The STM32F072 has only 16 KB total, so storing or processing a raw frame is impossible. The ArduCAM OV2640 is configured to output JPEG-compressed images instead, which fit within the 10 KB image buffer shared between the camera and base station modules.
+Library: TJpegDec
+TJpegDec is a JPEG decompressor specifically designed for resource-constrained embedded systems. Key properties relevant to this project:
+
+Decompresses in small MCU (Minimum Coded Unit) blocks rather than all at once, so only a small working buffer needs to be live at any time
+Configurable workspace size — tuned here to fit alongside the 10 KB image buffer within 16 KB RAM
+Output callback-based: each decoded block is passed to a user-defined function, which performs an endian swap and writes the block to the screen over SPI1
+
+**Memory Constraints & Linker Script Changes**
+To fit both the 10 KB image buffer and TJpegDec's workspace into 16 KB RAM:
+  -Heap was removed from the linker script (STM32F072XB.ld), since dynamic allocation isn't used and heap competes directly with static buffers
+  -Data structures were modified to use bitmasking to pack boolean flags into single bits rather than full bytes
+
+**Endian Swap**
+The STM32F072 and the JPEG data are little-endian, but the ILI9341 screen expects big-endian RGB565 values. Each MCU block output by TJpegDec must be byte-swapped before transmission to the screen. This is accelerated using the ARM REV16 instruction, which swaps bytes within each 16-bit halfword — processing 4 bytes per clock cycle.
+**Performance**
+JPEG decompression is computationally expensive on the STM32F072. At its maximum core clock of 48 MHz, decompressing a single 320×240 JPEG frame takes approximately 5 seconds, limiting the system's effective refresh rate to ~0.2 Hz. A more powerful MCU would be required to achieve real-time video.
+
 
 ## Screen
 The screen purchased contains three devices in one: the screen itself that uses the ILI9341 driver chip, a touchscreen that uses the TSC2007 controller, and an SD card interface. The touchscreen and SD card are currently unused in this project.
