@@ -19,7 +19,7 @@
 ## Overview
 This is the wireless security camera. It consists of two microcontroller modules: the camera and the base station. The camera captures and wirelessly transmits a video feed to the base station, which receives and displays the image feed on an integrated display. Both modules use the STM32F072 Discovery board and the nRF24L01+ RF chip. The camera module uses the ArduCAM OV2640 camera, and the base station uses a 2.8" Adafruit TFT screen with the ILI9341 chipset and a resolution of 320x240. The STM32F072 has very limited RAM, so JPEG compression is used to meet these constraints. The camera system is shown below.
 
-// TODO: add final system picture
+![Wireless Security Camera System](/docs/img/system.png "Wireless Security Camera System")
 
 ## Hardware
 The following hardware is used to implement this project.
@@ -111,13 +111,13 @@ The camera module uses a timer to read images from the ArduCAM at a consistent f
 
 The RF chip transmits the data packet combined with a synchronization preamble that alerts receiving RF chips of incoming data, the address of the RX chip that should receive the data, data control flags, and a CRC that allows the RX chip to verify it received the data correctly. The RX chip sends an acknowledgement when it receives data and the data's CRC is correct, so packets that are lost or corrupted in transmission aren't acknowledged and can be automatically retransmitted by the TX chip. After the RX chip validates the received data, it interrupts the base station's microcontroller, which triggers a DMA read of the packet out of the RX chip's receive FIFO over SPI2. The data received can then be unpacked and read into the correct position in the base station's image buffer using the packet ID from the image transfer protocol header.
 
-A 320x240 pixel image with 16 bits of color resolution - the RGB565 format used by the screen - would require more than 1 MB of RAM, but the STM32F072 only has 16 KB. To remedy this, the OV2640 sensor in the ArduCAM was configured to compress the images it captures into JPEG files that fit into the microcontrollers' 10 KB image buffers. The TJpegDec library, which is optimized for JPEG decompression on low-resource microcontrollers, is then used to decompress the image one region at a time and write the result to the screen over SPI1.
+A 320x240 pixel image with 16 bits of color resolution - the RGB565 format used by the screen - would require ~150 KB of RAM, but the STM32F072 only has 16 KB. To remedy this, the OV2640 sensor in the ArduCAM was configured to compress the images it captures into JPEG files that fit into the microcontrollers' 10 KB image buffers. The TJpegDec library, which is optimized for JPEG decompression on low-resource microcontrollers, is then used to decompress the image one region at a time and write the result to the screen over SPI1.
 
 To fit both the image buffer and the workspace for the TJpegDec library into the base station's 16 KB of RAM, the linker script was modified to remove heap memory, and the base station's data structures were modified to use bitmasking to pack flags into single bits.
 
 The STM32F072 is little-endian, and the camera and RF chips both transfer data as little-endian. However, the screen is big-endian. For images to be displayed correctly, each image region decompressed by the TJpegDec library must undergo an endian swap prior to transmission to the screen. This process is accelerated with the ARM architecture's `REV16` instruction, which can perform this swap on four bytes in one clock cycle.
 
-JPEG decompression is computationally expensive - decompressing a single 320x240 image takes approximately 5 seconds on the STM32F072 with its core clock configured to the maximum 48 MHz rate. Without a more powerful microcontroller, this means the refresh rate of the security camera's video feed is limited to ~0.2 Hz.
+JPEG decompression is computationally expensive - decompressing a single 320x240 image takes approximately 5 seconds on the STM32F072 with its core clock configured to the maximum 48 MHz rate. Without a more powerful microcontroller with floating point hardware and a modern graphics interface, this means the refresh rate of the security camera's video feed is limited to ~0.2 Hz.
 
 
 ### Repository Structure
@@ -146,12 +146,12 @@ As this project was implemented, new directories were created as features were a
 - [docs](/docs): Resources used by this README (images, datasheets, etc.).
 
 ## Camera
-- The camera module uses the ArduCAM, which combines an OV2640 image sensor with and on-board FIFO buffer and SPI/I2C interface. The STm32 communicates 
-  with it over two busses simultaneously: I2C (SCCB) for ssensor configuration and SPI2 for image date transfer.
-- Camera initialization happens in teh following order: the SCCB/I2C bus is initialized, the sensor I2C address is set to 0x60, the SPI chip select pin is
+- The camera module uses the ArduCAM, which combines an OV2640 image sensor with an on-board FIFO buffer and SPI/I2C interface. The STM32 communicates 
+  with it over two busses simultaneously: I2C (SCCB) for sensor configuration and SPI2 for image data transfer.
+- Camera initialization happens in the following order: the SCCB/I2C bus is initialized, the sensor I2C address is set to 0x60, the SPI chip select pin is
   configured, and then ArduCAM_Init is called to configure the OV2640 sensor.
 - Frame capture follows this sequence: The ArduCAMs FIFO is flushed, a capture is triggered by writing to ARDUCHIP_FIFO, the STM polls the CAP_DONE_MASK bit 
-  until capture completes, The FIFO lenght is read from three size registersand validated, the image is read out of the ArduCam's FIFO, the buffer is scanned for the JPEG
+  until capture completes, The FIFO length is read from three size registers and validated, the image is read out of the ArduCam's FIFO, the buffer is scanned for the JPEG
   end of file marker (0xFF 0xD9) to determine the true length.
 - The frame capture is driven by TIM2 which produces an event about every 5.5 seconds. The timer ISR sets a capture_request flag which is checked in the main loop. The
   main loop only initiates a new capture when the capture request flag is set.
@@ -192,18 +192,18 @@ The base station uses the TJpegDec library to decompress incoming JPEG image dat
 A raw 320×240 RGB565 image requires ~150 KB of RAM. The STM32F072 has only 16 KB total, so storing or processing a raw frame is impossible. The ArduCAM OV2640 is configured to output JPEG-compressed images instead, which fit within the 10 KB image buffer shared between the camera and base station modules.
 Library: TJpegDec
 TJpegDec is a JPEG decompressor specifically designed for resource-constrained embedded systems. Key properties relevant to this project:
-
-Decompresses in small MCU (Minimum Coded Unit) blocks rather than all at once, so only a small working buffer needs to be live at any time
-Configurable workspace size — tuned here to fit alongside the 10 KB image buffer within 16 KB RAM
-Output callback-based: each decoded block is passed to a user-defined function, which performs an endian swap and writes the block to the screen over SPI1
+- Decompresses in small MCU (Minimum Coded Unit) blocks rather than all at once, so only a small working buffer needs to be live at any time
+- Configurable workspace size — tuned here to fit alongside the 10 KB image buffer within 16 KB RAM
+- Output callback-based: each decoded block is passed to a user-defined function, which performs an endian swap and writes the block to the screen over SPI1
 
 **Memory Constraints & Linker Script Changes**
 To fit both the 10 KB image buffer and TJpegDec's workspace into 16 KB RAM:
-  -Heap was removed from the linker script (STM32F072XB.ld), since dynamic allocation isn't used and heap competes directly with static buffers
-  -Data structures were modified to use bitmasking to pack boolean flags into single bits rather than full bytes
+  - Heap was removed from the linker script (STM32F072XB.ld), since dynamic allocation isn't used and heap competes directly with static buffers
+  - Data structures were modified to use bitmasking to pack boolean flags into single bits rather than full bytes
 
 **Endian Swap**
 The STM32F072 and the JPEG data are little-endian, but the ILI9341 screen expects big-endian RGB565 values. Each MCU block output by TJpegDec must be byte-swapped before transmission to the screen. This is accelerated using the ARM REV16 instruction, which swaps bytes within each 16-bit halfword — processing 4 bytes per clock cycle.
+
 **Performance**
 JPEG decompression is computationally expensive on the STM32F072. At its maximum core clock of 48 MHz, decompressing a single 320×240 JPEG frame takes approximately 5 seconds, limiting the system's effective refresh rate to ~0.2 Hz. A more powerful MCU would be required to achieve real-time video.
 
